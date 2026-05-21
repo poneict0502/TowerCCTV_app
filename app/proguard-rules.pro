@@ -1,0 +1,3 @@
+-keep class org.videolan.libvlc.** { *; }
+-keep interface org.videolan.libvlc.** { *; }
+-dontwarn org.videolan.libvlc.**
