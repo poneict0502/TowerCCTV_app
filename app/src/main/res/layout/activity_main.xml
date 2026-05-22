@@ -180,22 +180,16 @@
                         android:textSize="10sp" android:textStyle="bold"
                         android:background="#1a2d40" android:paddingStart="4dp" android:paddingEnd="4dp"/>
                 </LinearLayout>
-                <!-- OCR 모드 스냅샷 표시 (VLC 위에 오버레이) -->
-                <ImageView android:id="@+id/imgOcrSnapshot"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="centerCrop"
-                    android:visibility="gone"/>
-                <!-- OCR 배지 -->
+                <!-- OCR 배지 (영상 우하단) -->
                 <TextView android:id="@+id/tvOcrBadge"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:layout_gravity="end|bottom"
                     android:layout_margin="6dp"
-                    android:text="OCR"
-                    android:textColor="#FFFFFF" android:textSize="9sp" android:textStyle="bold"
+                    android:text="● OCR"
+                    android:textColor="#FFFFFF" android:textSize="10sp" android:textStyle="bold"
                     android:background="#CC2979FF"
-                    android:paddingStart="5dp" android:paddingEnd="5dp"
-                    android:paddingTop="2dp" android:paddingBottom="2dp"
+                    android:paddingStart="6dp" android:paddingEnd="6dp"
+                    android:paddingTop="3dp" android:paddingBottom="3dp"
                     android:visibility="gone"/>
                 <View android:id="@+id/touch3"
                     android:layout_width="match_parent" android:layout_height="match_parent"

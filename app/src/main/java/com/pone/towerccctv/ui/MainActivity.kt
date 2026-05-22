@@ -53,9 +53,13 @@ class MainActivity : AppCompatActivity() {
     private val reconnectJobs = arrayOfNulls<Runnable>(4)
     private val RECONNECT_DELAY = 5000L
 
-    // OCR 엔진
+    // OCR - 영상 프레임 캡처 방식
     private var ocrEngine: OcrEngine? = null
-    // 경보 중복 방지 (10초)
+    private val ocrHandler = Handler(Looper.getMainLooper())
+    private var ocrJob: Runnable? = null
+    private var ocrChannelIndex = -1  // OCR 대상 채널 인덱스
+
+    // 경보 중복 방지
     private var lastAlertTime = 0L
     private val ALERT_INTERVAL = 10_000L
 
@@ -84,7 +88,7 @@ class MainActivity : AppCompatActivity() {
                 when (item.itemId) {
                     1 -> startActivity(Intent(this, DeviceListActivity::class.java))
                     2 -> showAutoRegisterDialog()
-                    3 -> OcrSettingsDialog(this) { restartOcr() }.show()
+                    3 -> OcrSettingsDialog(this) { restartStreams() }.show()
                 }
                 true
             }
@@ -100,17 +104,20 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         cancelAllReconnects()
-        stopAllStreams()
         stopOcr()
+        stopAllStreams()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         cancelAllReconnects()
+        stopOcr()
         releaseAll()
-        ocrEngine?.release()
-        libVLC?.release()
-        libVLC = null
+        libVLC?.release(); libVLC = null
+    }
+
+    private fun restartStreams() {
+        stopOcr(); stopAllStreams(); startAllStreams()
     }
 
     private fun startAllStreams() {
@@ -128,9 +135,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val ocrEnabled = OcrSettings.isOcrEnabled(this)
-        val ch4Index = channels.indexOfFirst { it.extractIp() == "192.168.0.104" }
-            .let { if (it < 0) channels.size - 1 else it }  // 마지막 채널을 CH4로
+        // CH4 인덱스 찾기 (마지막 채널)
+        ocrChannelIndex = channels.size - 1
 
         for (i in 0 until 4) {
             if (i < channels.size) {
@@ -141,13 +147,8 @@ class MainActivity : AppCompatActivity() {
                 setDot(i, "gray")
                 val idx = i
                 touchList[i].setOnClickListener { openPlayer(idx) }
-
-                // OCR 모드 ON + 마지막 채널(CH4) → 스냅샷 모드
-                if (ocrEnabled && i == ch4Index) {
-                    startOcrMode(ch)
-                } else {
-                    startStream(i, ch)
-                }
+                // 모든 채널 동일하게 서브스트림 영상
+                startStream(i, ch)
             } else {
                 vlcList[i].visibility = View.INVISIBLE
                 touchList[i].setOnClickListener(null)
@@ -155,91 +156,95 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        if (!ocrEnabled) stopOcr()
-    }
-
-    // ── OCR 모드 ──
-    private fun startOcrMode(ch: Channel) {
-        val snapshotUrl = "${ch.httpBase}/ISAPI/Streaming/channels/101/picture"
-        val ch4idx = channels.indexOf(ch)
-
-        // CH4 VLC 중지 → 스냅샷 ImageView 표시
-        players[ch4idx]?.stop(); players[ch4idx]?.detachViews()
-        players[ch4idx]?.release(); players[ch4idx] = null
-        vlcList[ch4idx].visibility = View.INVISIBLE
-        b.imgOcrSnapshot.visibility = View.VISIBLE
-        b.tvOcrBadge.visibility     = View.VISIBLE
-        b.osdOverlay.visibility     = View.VISIBLE
-        setDot(ch4idx, "yellow")
-
-        ocrEngine?.release()
-        ocrEngine = OcrEngine(this).also { engine ->
-            engine.onResult = { result ->
-                // CH4 스냅샷 갱신
-                engine.lastBitmap?.let { bmp ->
-                    b.imgOcrSnapshot.setImageBitmap(bmp)
-                    setDot(ch4idx, "green")
-                }
-                // CH1 OSD 업데이트
-                updateOsd(result.windSpeed, result.weight,
-                          result.windAlert, result.weightAlert)
-            }
-            engine.start(snapshotUrl, ch.username, ch.password)
+        // OCR 모드 ON이면 0.5초 프레임 캡처 루프 시작
+        if (OcrSettings.isOcrEnabled(this) && ocrChannelIndex >= 0) {
+            startOcrLoop()
         }
     }
 
-    private fun stopOcr() {
-        ocrEngine?.stop()
-        b.imgOcrSnapshot.visibility = View.GONE
-        b.tvOcrBadge.visibility     = View.GONE
-        b.osdOverlay.visibility     = View.GONE
+    // ── OCR: 0.5초마다 CH4 영상에서 프레임 캡처 ──
+    private fun startOcrLoop() {
+        ocrEngine?.release()
+        ocrEngine = OcrEngine(this).also { engine ->
+            engine.onResult = { result ->
+                updateOsd(result.windSpeed, result.weight,
+                          result.windAlert, result.weightAlert)
+            }
+        }
+        b.osdOverlay.visibility = View.VISIBLE
+        b.tvOcrBadge.visibility = View.VISIBLE
+
+        val runnable = object : Runnable {
+            override fun run() {
+                if (isDestroyed || isFinishing) return
+                captureAndOcr()
+                ocrHandler.postDelayed(this, 500L)
+            }
+        }
+        ocrJob = runnable
+        ocrHandler.post(runnable)
     }
 
-    private fun restartOcr() {
-        stopOcr(); stopAllStreams(); startAllStreams()
+    private fun captureAndOcr() {
+        val idx = ocrChannelIndex
+        if (idx < 0 || idx >= vlcList.size) return
+        val bmp = captureFrame(idx) ?: return
+        ocrEngine?.processFrame(bmp)
+    }
+
+    private fun captureFrame(idx: Int): Bitmap? {
+        return try {
+            val vlcView = vlcList[idx]
+            for (i in 0 until vlcView.childCount) {
+                val child = vlcView.getChildAt(i)
+                if (child is TextureView) {
+                    return child.bitmap
+                }
+            }
+            if (vlcView.width > 0 && vlcView.height > 0) {
+                Bitmap.createBitmap(vlcView.width, vlcView.height, Bitmap.Config.ARGB_8888)
+                    .also { vlcView.draw(Canvas(it)) }
+            } else null
+        } catch (e: Exception) { null }
+    }
+
+    private fun stopOcr() {
+        ocrJob?.let { ocrHandler.removeCallbacks(it) }
+        ocrJob = null
+        ocrEngine?.release(); ocrEngine = null
+        b.osdOverlay.visibility = View.GONE
+        b.tvOcrBadge.visibility = View.GONE
     }
 
     // ── CH1 OSD 업데이트 ──
     private fun updateOsd(wind: Float?, weight: Float?,
                           windAlert: Boolean, weightAlert: Boolean) {
-        val windTxt = if (wind != null) "%.1f m/s".format(wind) else "--"
-        val wtTxt   = if (weight != null) "%.0f kg".format(weight) else "--"
-
-        b.osdWind.text   = "🌬 풍속: $windTxt"
-        b.osdWeight.text = "⚖ 중량: $wtTxt"
-
-        // 한계 초과 시 빨간색
+        val windTxt   = if (wind   != null) "🌬  %.1f m/s".format(wind)   else "🌬  --"
+        val weightTxt = if (weight != null) "⚖  %.0f kg".format(weight) else "⚖  --"
+        b.osdWind.text   = windTxt
+        b.osdWeight.text = weightTxt
         b.osdWind.setTextColor(if (windAlert) Color.parseColor("#FF4444") else Color.WHITE)
         b.osdWeight.setTextColor(if (weightAlert) Color.parseColor("#FF4444") else Color.WHITE)
 
-        // 경보 (10초 중복 방지)
-        if ((windAlert || weightAlert)) {
+        if (windAlert || weightAlert) {
             val now = System.currentTimeMillis()
             if (now - lastAlertTime > ALERT_INTERVAL) {
                 lastAlertTime = now
-                showAlert(windAlert, wind, weightAlert, weight)
+                val msg = buildString {
+                    if (windAlert && wind != null)
+                        append("🚨 풍속 초과: %.1f m/s (한계: %.1f)\n"
+                            .format(wind, OcrSettings.getWindLimit(this@MainActivity)))
+                    if (weightAlert && weight != null)
+                        append("🚨 중량 초과: %.0f kg (한계: %.0f)"
+                            .format(weight, OcrSettings.getWeightLimit(this@MainActivity)))
+                }
+                b.osdOverlay.setBackgroundColor(Color.parseColor("#DD880000"))
+                reconnectHandler.postDelayed({
+                    b.osdOverlay.setBackgroundColor(Color.parseColor("#DD000000"))
+                }, 3000L)
+                Toast.makeText(this, msg.trim(), Toast.LENGTH_LONG).show()
             }
         }
-    }
-
-    private fun showAlert(windAlert: Boolean, wind: Float?,
-                          weightAlert: Boolean, weight: Float?) {
-        val msg = buildString {
-            if (windAlert && wind != null)
-                append("🚨 풍속 초과: %.1f m/s (한계: %.1f)\n".format(
-                    wind, OcrSettings.getWindLimit(this@MainActivity)))
-            if (weightAlert && weight != null)
-                append("🚨 중량 초과: %.0f kg (한계: %.0f)".format(
-                    weight, OcrSettings.getWeightLimit(this@MainActivity)))
-        }
-
-        // OSD 배경 빨간 깜빡임
-        b.osdOverlay.setBackgroundColor(Color.parseColor("#DD880000"))
-        reconnectHandler.postDelayed({
-            b.osdOverlay.setBackgroundColor(Color.parseColor("#DD000000"))
-        }, 3000L)
-
-        Toast.makeText(this, msg.trim(), Toast.LENGTH_LONG).show()
     }
 
     // ── RTSP 스트림 ──
@@ -259,7 +264,7 @@ class MainActivity : AppCompatActivity() {
         player.setEventListener { ev ->
             runOnUiThread {
                 when (ev.type) {
-                    MediaPlayer.Event.Playing -> { setDot(idx, "green"); cancelReconnect(idx) }
+                    MediaPlayer.Event.Playing  -> { setDot(idx, "green"); cancelReconnect(idx) }
                     MediaPlayer.Event.Buffering -> setDot(idx, "yellow")
                     MediaPlayer.Event.EncounteredError -> { setDot(idx, "red"); scheduleReconnect(idx, ch) }
                     MediaPlayer.Event.EndReached -> { setDot(idx, "gray"); scheduleReconnect(idx, ch) }
@@ -289,12 +294,14 @@ class MainActivity : AppCompatActivity() {
     // ── PlayerActivity 전환 ──
     private fun openPlayer(index: Int) {
         val ch = channels.getOrNull(index) ?: return
-        val bmp = captureFrameOnUiThread(index)
+        val bmp = captureFrame(index)
         lifecycleScope.launch {
             val snapPath = bmp?.let {
-                withContext(Dispatchers.IO) { saveBitmapToFile(it, index).also { _ -> it.recycle() } }
+                withContext(Dispatchers.IO) {
+                    saveBitmapToFile(it, index).also { _ -> it.recycle() }
+                }
             }
-            cancelAllReconnects(); stopAllStreams(); stopOcr()
+            cancelAllReconnects(); stopOcr(); stopAllStreams()
             startActivity(Intent(this@MainActivity, PlayerActivity::class.java).apply {
                 putExtra("rtspUrl",    ch.rtspUrl)
                 putExtra("httpBase",   ch.httpBase)
@@ -308,20 +315,6 @@ class MainActivity : AppCompatActivity() {
             })
             overridePendingTransition(0, 0)
         }
-    }
-
-    private fun captureFrameOnUiThread(index: Int): Bitmap? {
-        return try {
-            val vlcView = vlcList[index]
-            for (i in 0 until vlcView.childCount) {
-                val child = vlcView.getChildAt(i)
-                if (child is TextureView) return child.bitmap
-            }
-            if (vlcView.width > 0 && vlcView.height > 0) {
-                Bitmap.createBitmap(vlcView.width, vlcView.height, Bitmap.Config.ARGB_8888)
-                    .also { vlcView.draw(Canvas(it)) }
-            } else null
-        } catch (e: Exception) { null }
     }
 
     private fun saveBitmapToFile(bmp: Bitmap, index: Int): String? = try {
@@ -365,19 +358,19 @@ class MainActivity : AppCompatActivity() {
     private fun autoRegisterCameras() {
         val cameras = listOf(
             com.pone.towerccctv.model.Device(name="CH1",
-                type=com.pone.towerccctv.model.DeviceType.CAMERA,
-                ip="192.168.0.101", username="admin", password="1234qwer@", hasPtz=true),
+                type=DeviceType.CAMERA, ip="192.168.0.101",
+                username="admin", password="1234qwer@", hasPtz=true),
             com.pone.towerccctv.model.Device(name="CH2",
-                type=com.pone.towerccctv.model.DeviceType.CAMERA,
-                ip="192.168.0.102", username="admin", password="1q2w3e4r@", hasPtz=true),
+                type=DeviceType.CAMERA, ip="192.168.0.102",
+                username="admin", password="1q2w3e4r@", hasPtz=true),
             com.pone.towerccctv.model.Device(name="CH3",
-                type=com.pone.towerccctv.model.DeviceType.CAMERA,
-                ip="192.168.0.103", username="admin", password="1q2w3e4r@", hasPtz=true),
+                type=DeviceType.CAMERA, ip="192.168.0.103",
+                username="admin", password="1q2w3e4r@", hasPtz=true),
             com.pone.towerccctv.model.Device(name="CH4",
-                type=com.pone.towerccctv.model.DeviceType.CAMERA,
-                ip="192.168.0.104", username="admin", password="1q2w3e4r@", hasPtz=false)
+                type=DeviceType.CAMERA, ip="192.168.0.104",
+                username="admin", password="1q2w3e4r@", hasPtz=false)
         )
-        com.pone.towerccctv.model.DeviceStore.save(this, cameras)
+        DeviceStore.save(this, cameras)
         Toast.makeText(this, "카메라 4대 등록 완료!", Toast.LENGTH_SHORT).show()
         startAllStreams()
     }

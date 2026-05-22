@@ -67,4 +67,31 @@ object OcrSettings {
             .putFloat("weight_roi_x", roi.x).putFloat("weight_roi_y", roi.y)
             .putFloat("weight_roi_w", roi.w).putFloat("weight_roi_h", roi.h).apply()
     }
+
+    // 최신 OCR 값 저장 (PlayerActivity에서 읽기용)
+    fun saveLatestValues(ctx: Context, wind: Float?, weight: Float?,
+                         windAlert: Boolean, weightAlert: Boolean) {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putFloat("latest_wind",   wind   ?: -1f)
+            .putFloat("latest_weight", weight ?: -1f)
+            .putBoolean("latest_wind_alert",   windAlert)
+            .putBoolean("latest_weight_alert", weightAlert)
+            .putLong("latest_time", System.currentTimeMillis())
+            .apply()
+    }
+
+    fun getLatestWind(ctx: Context): Float? {
+        val v = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getFloat("latest_wind", -1f)
+        return if (v < 0) null else v
+    }
+    fun getLatestWeight(ctx: Context): Float? {
+        val v = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getFloat("latest_weight", -1f)
+        return if (v < 0) null else v
+    }
+    fun isLatestWindAlert(ctx: Context) =
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("latest_wind_alert", false)
+    fun isLatestWeightAlert(ctx: Context) =
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("latest_weight_alert", false)
+    fun getLatestTime(ctx: Context) =
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong("latest_time", 0L)
 }

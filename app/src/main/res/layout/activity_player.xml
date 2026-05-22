@@ -20,45 +20,57 @@
             android:scaleType="centerCrop"
             android:visibility="gone"/>
 
-        <!-- 상단 상태바 -->
-        <LinearLayout android:layout_width="match_parent" android:layout_height="46dp"
+        <!-- 상단 상태바 (OSD 포함) -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="60dp"
             android:orientation="horizontal" android:gravity="center_vertical"
             android:paddingStart="14dp" android:paddingEnd="14dp"
-            android:background="#DD000000">
+            android:background="#EE000000">
             <View android:id="@+id/dotPlayer"
                 android:layout_width="12dp" android:layout_height="12dp"
                 android:background="@drawable/dot_gray" android:layout_marginEnd="10dp"/>
             <TextView android:id="@+id/lblPlayer"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:text="--" android:textColor="#FFFFFF"
-                android:textSize="20sp" android:textStyle="bold"
-                android:layout_marginEnd="10dp"/>
-            <TextView android:id="@+id/ipPlayer"
-                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:textColor="#AACCFF" android:textSize="14sp"
-                android:layout_marginEnd="10dp"/>
-            <!-- 메인스트림 배지 -->
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="메인" android:textColor="#FF9800"
-                android:textSize="11sp" android:textStyle="bold"
-                android:background="#2a1800" android:paddingStart="6dp" android:paddingEnd="6dp"
-                android:paddingTop="2dp" android:paddingBottom="2dp"
-                android:layout_marginEnd="10dp"/>
-            <!-- 연결 상태 -->
+                android:textSize="18sp" android:textStyle="bold"
+                android:layout_marginEnd="8dp"/>
             <TextView android:id="@+id/tvStreamStatus"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="연결 중..." android:textColor="#FFB300"
+                android:textSize="12sp" android:textStyle="bold"
+                android:layout_marginEnd="8dp"/>
+            <TextView android:id="@+id/ipPlayer"
                 android:layout_width="0dp" android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="연결 중..." android:textColor="#FFB300"
-                android:textSize="13sp" android:textStyle="bold"/>
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="더블탭 = 그리드"
                 android:textColor="#667788" android:textSize="11sp"/>
+            <!-- OCR OSD: 풍속 (크게) -->
+            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:orientation="vertical" android:gravity="center_horizontal"
+                android:layout_marginEnd="16dp">
+                <TextView android:id="@+id/osdWindPlayer"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="🌬  --"
+                    android:textColor="#FFFFFF" android:textSize="22sp" android:textStyle="bold"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="풍속 (m/s)"
+                    android:textColor="#667788" android:textSize="9sp" android:gravity="center"/>
+            </LinearLayout>
+            <!-- OCR OSD: 중량 (크게) -->
+            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:orientation="vertical" android:gravity="center_horizontal">
+                <TextView android:id="@+id/osdWeightPlayer"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="⚖  --"
+                    android:textColor="#FFFFFF" android:textSize="22sp" android:textStyle="bold"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="중량 (kg)"
+                    android:textColor="#667788" android:textSize="9sp" android:gravity="center"/>
+            </LinearLayout>
         </LinearLayout>
 
         <!-- 더블탭 감지 투명 레이어 -->
         <View android:id="@+id/touchOverlay"
             android:layout_width="match_parent" android:layout_height="match_parent"
-            android:layout_marginTop="46dp"
+            android:layout_marginTop="60dp"
             android:background="@android:color/transparent"/>
     </FrameLayout>
 
