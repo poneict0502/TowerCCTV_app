@@ -33,20 +33,17 @@
                     <org.videolan.libvlc.util.VLCVideoLayout android:id="@+id/vlc0"
                         android:layout_width="match_parent" android:layout_height="match_parent"/>
                     <LinearLayout android:layout_width="match_parent" android:layout_height="22dp"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
+                        android:orientation="horizontal" android:gravity="center_vertical"
                         android:paddingStart="8dp" android:paddingEnd="8dp"
                         android:background="#99000000">
                         <View android:id="@+id/dot0"
                             android:layout_width="6dp" android:layout_height="6dp"
-                            android:background="@drawable/dot_gray"
-                            android:layout_marginEnd="6dp"/>
+                            android:background="@drawable/dot_gray" android:layout_marginEnd="6dp"/>
                         <TextView android:id="@+id/lbl0"
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
                             android:text="--"
                             android:textColor="#FFFFFF" android:textSize="10sp"
-                            android:textStyle="bold"
-                            android:layout_marginEnd="6dp"/>
+                            android:textStyle="bold" android:layout_marginEnd="6dp"/>
                         <TextView android:id="@+id/ip0"
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
                             android:text=""
@@ -56,25 +53,21 @@
 
                 <FrameLayout android:id="@+id/cell1"
                     android:layout_width="0dp" android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:background="#111820">
+                    android:layout_weight="1" android:background="#111820">
                     <org.videolan.libvlc.util.VLCVideoLayout android:id="@+id/vlc1"
                         android:layout_width="match_parent" android:layout_height="match_parent"/>
                     <LinearLayout android:layout_width="match_parent" android:layout_height="22dp"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
+                        android:orientation="horizontal" android:gravity="center_vertical"
                         android:paddingStart="8dp" android:paddingEnd="8dp"
                         android:background="#99000000">
                         <View android:id="@+id/dot1"
                             android:layout_width="6dp" android:layout_height="6dp"
-                            android:background="@drawable/dot_gray"
-                            android:layout_marginEnd="6dp"/>
+                            android:background="@drawable/dot_gray" android:layout_marginEnd="6dp"/>
                         <TextView android:id="@+id/lbl1"
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
                             android:text="--"
                             android:textColor="#FFFFFF" android:textSize="10sp"
-                            android:textStyle="bold"
-                            android:layout_marginEnd="6dp"/>
+                            android:textStyle="bold" android:layout_marginEnd="6dp"/>
                         <TextView android:id="@+id/ip1"
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
                             android:text=""
@@ -96,20 +89,17 @@
                     <org.videolan.libvlc.util.VLCVideoLayout android:id="@+id/vlc2"
                         android:layout_width="match_parent" android:layout_height="match_parent"/>
                     <LinearLayout android:layout_width="match_parent" android:layout_height="22dp"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
+                        android:orientation="horizontal" android:gravity="center_vertical"
                         android:paddingStart="8dp" android:paddingEnd="8dp"
                         android:background="#99000000">
                         <View android:id="@+id/dot2"
                             android:layout_width="6dp" android:layout_height="6dp"
-                            android:background="@drawable/dot_gray"
-                            android:layout_marginEnd="6dp"/>
+                            android:background="@drawable/dot_gray" android:layout_marginEnd="6dp"/>
                         <TextView android:id="@+id/lbl2"
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
                             android:text="--"
                             android:textColor="#FFFFFF" android:textSize="10sp"
-                            android:textStyle="bold"
-                            android:layout_marginEnd="6dp"/>
+                            android:textStyle="bold" android:layout_marginEnd="6dp"/>
                         <TextView android:id="@+id/ip2"
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
                             android:text=""
@@ -119,25 +109,21 @@
 
                 <FrameLayout android:id="@+id/cell3"
                     android:layout_width="0dp" android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:background="#111820">
+                    android:layout_weight="1" android:background="#111820">
                     <org.videolan.libvlc.util.VLCVideoLayout android:id="@+id/vlc3"
                         android:layout_width="match_parent" android:layout_height="match_parent"/>
                     <LinearLayout android:layout_width="match_parent" android:layout_height="22dp"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
+                        android:orientation="horizontal" android:gravity="center_vertical"
                         android:paddingStart="8dp" android:paddingEnd="8dp"
                         android:background="#99000000">
                         <View android:id="@+id/dot3"
                             android:layout_width="6dp" android:layout_height="6dp"
-                            android:background="@drawable/dot_gray"
-                            android:layout_marginEnd="6dp"/>
+                            android:background="@drawable/dot_gray" android:layout_marginEnd="6dp"/>
                         <TextView android:id="@+id/lbl3"
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
                             android:text="--"
                             android:textColor="#FFFFFF" android:textSize="10sp"
-                            android:textStyle="bold"
-                            android:layout_marginEnd="6dp"/>
+                            android:textStyle="bold" android:layout_marginEnd="6dp"/>
                         <TextView android:id="@+id/ip3"
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
                             android:text=""
@@ -156,20 +142,17 @@
                 android:layout_width="match_parent" android:layout_height="match_parent"/>
             <LinearLayout
                 android:layout_width="match_parent" android:layout_height="32dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
+                android:orientation="horizontal" android:gravity="center_vertical"
                 android:paddingStart="10dp" android:paddingEnd="10dp"
                 android:background="#99000000">
                 <View android:id="@+id/dotMain"
                     android:layout_width="8dp" android:layout_height="8dp"
-                    android:background="@drawable/dot_gray"
-                    android:layout_marginEnd="7dp"/>
+                    android:background="@drawable/dot_gray" android:layout_marginEnd="7dp"/>
                 <TextView android:id="@+id/lblMain"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:text="--"
                     android:textColor="#FFFFFF" android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:layout_marginEnd="8dp"/>
+                    android:textStyle="bold" android:layout_marginEnd="8dp"/>
                 <TextView android:id="@+id/ipMain"
                     android:layout_width="0dp" android:layout_height="wrap_content"
                     android:layout_weight="1"
@@ -179,39 +162,35 @@
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:text="● LIVE"
                     android:textColor="#4CAF50" android:textSize="10sp"
-                    android:layout_marginEnd="12dp"
-                    android:visibility="gone"/>
-                <Button android:id="@+id/btnBack"
-                    android:layout_width="wrap_content" android:layout_height="28dp"
-                    android:minWidth="60dp"
-                    android:text="◀ 그리드"
-                    android:textColor="#FFFFFF" android:textSize="10sp"
-                    android:background="@drawable/bg_btn"
-                    android:paddingStart="8dp" android:paddingEnd="8dp"/>
+                    android:layout_marginEnd="6dp" android:visibility="gone"/>
+                <TextView
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="더블탭=그리드"
+                    android:textColor="#888888" android:textSize="9sp"/>
             </LinearLayout>
         </FrameLayout>
     </FrameLayout>
 
     <LinearLayout android:id="@+id/rightPanel"
-        android:layout_width="180dp"
+        android:layout_width="200dp"
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:background="#162030">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="40dp"
             android:orientation="horizontal">
             <TextView android:id="@+id/tabCtrl"
                 android:layout_width="0dp" android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:text="제어" android:textSize="12sp"
+                android:text="제어" android:textSize="13sp" android:textStyle="bold"
                 android:textColor="#2979FF" android:gravity="center"
                 android:background="#1a2d40"/>
             <TextView android:id="@+id/tabMgmt"
                 android:layout_width="0dp" android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:text="관리" android:textSize="12sp"
+                android:text="관리" android:textSize="13sp" android:textStyle="bold"
                 android:textColor="#556677" android:gravity="center"/>
         </LinearLayout>
         <View android:layout_width="match_parent" android:layout_height="0.5dp"
@@ -226,88 +205,153 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="8dp">
+                android:padding="6dp">
 
                 <TextView android:id="@+id/tvCtrlHint"
                     android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:text="화면을 탭하여 단독 모드"
+                    android:text="화면 탭 = 단독 모드"
                     android:textColor="#778899" android:textSize="10sp"
-                    android:gravity="center"
-                    android:layout_marginBottom="6dp"/>
+                    android:gravity="center" android:layout_marginBottom="4dp"/>
 
-                <com.pone.towerccctv.ui.JoystickView android:id="@+id/joystick"
-                    android:layout_width="110dp" android:layout_height="110dp"
-                    android:layout_gravity="center_horizontal"
-                    android:layout_marginBottom="6dp"/>
-
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:orientation="horizontal" android:gravity="center"
+                <LinearLayout android:id="@+id/ptzToggleRow"
+                    android:layout_width="match_parent" android:layout_height="38dp"
+                    android:orientation="horizontal" android:gravity="center_vertical"
+                    android:paddingStart="8dp" android:paddingEnd="8dp"
+                    android:background="@drawable/bg_btn"
                     android:layout_marginBottom="6dp">
-                    <Button android:id="@+id/btnZoomOut"
-                        android:layout_width="0dp" android:layout_height="40dp"
+                    <TextView
+                        android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="－" android:textSize="18sp" android:textColor="#CCCCCC"
-                        android:background="@drawable/bg_btn" android:layout_marginEnd="4dp"/>
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="ZOOM" android:textColor="#445566"
-                        android:textSize="9sp" android:layout_marginEnd="4dp"/>
-                    <Button android:id="@+id/btnZoomIn"
-                        android:layout_width="0dp" android:layout_height="40dp"
-                        android:layout_weight="1"
-                        android:text="＋" android:textSize="18sp" android:textColor="#CCCCCC"
-                        android:background="@drawable/bg_btn"/>
+                        android:text="PTZ 컨트롤"
+                        android:textColor="#CCCCCC" android:textSize="11sp" android:textStyle="bold"/>
+                    <androidx.appcompat.widget.SwitchCompat android:id="@+id/swPtz"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:checked="true"/>
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/ptzArea"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <GridLayout
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:columnCount="3" android:layout_marginBottom="6dp">
+                        <Button android:id="@+id/btnNW"
+                            android:layout_width="0dp" android:layout_height="56dp"
+                            android:layout_columnWeight="1" android:layout_margin="2dp"
+                            android:text="↖" android:textSize="18sp"
+                            android:background="@drawable/bg_btn" android:textColor="#CCCCCC"/>
+                        <Button android:id="@+id/btnN"
+                            android:layout_width="0dp" android:layout_height="56dp"
+                            android:layout_columnWeight="1" android:layout_margin="2dp"
+                            android:text="▲" android:textSize="20sp"
+                            android:background="@drawable/bg_btn" android:textColor="#FFFFFF"/>
+                        <Button android:id="@+id/btnNE"
+                            android:layout_width="0dp" android:layout_height="56dp"
+                            android:layout_columnWeight="1" android:layout_margin="2dp"
+                            android:text="↗" android:textSize="18sp"
+                            android:background="@drawable/bg_btn" android:textColor="#CCCCCC"/>
+                        <Button android:id="@+id/btnW"
+                            android:layout_width="0dp" android:layout_height="56dp"
+                            android:layout_columnWeight="1" android:layout_margin="2dp"
+                            android:text="◀" android:textSize="20sp"
+                            android:background="@drawable/bg_btn" android:textColor="#FFFFFF"/>
+                        <Button android:id="@+id/btnStop"
+                            android:layout_width="0dp" android:layout_height="56dp"
+                            android:layout_columnWeight="1" android:layout_margin="2dp"
+                            android:text="■" android:textSize="14sp"
+                            android:background="@drawable/bg_preset" android:textColor="#FF6B6B"/>
+                        <Button android:id="@+id/btnE"
+                            android:layout_width="0dp" android:layout_height="56dp"
+                            android:layout_columnWeight="1" android:layout_margin="2dp"
+                            android:text="▶" android:textSize="20sp"
+                            android:background="@drawable/bg_btn" android:textColor="#FFFFFF"/>
+                        <Button android:id="@+id/btnSW"
+                            android:layout_width="0dp" android:layout_height="56dp"
+                            android:layout_columnWeight="1" android:layout_margin="2dp"
+                            android:text="↙" android:textSize="18sp"
+                            android:background="@drawable/bg_btn" android:textColor="#CCCCCC"/>
+                        <Button android:id="@+id/btnS"
+                            android:layout_width="0dp" android:layout_height="56dp"
+                            android:layout_columnWeight="1" android:layout_margin="2dp"
+                            android:text="▼" android:textSize="20sp"
+                            android:background="@drawable/bg_btn" android:textColor="#FFFFFF"/>
+                        <Button android:id="@+id/btnSE"
+                            android:layout_width="0dp" android:layout_height="56dp"
+                            android:layout_columnWeight="1" android:layout_margin="2dp"
+                            android:text="↘" android:textSize="18sp"
+                            android:background="@drawable/bg_btn" android:textColor="#CCCCCC"/>
+                    </GridLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:gravity="center_vertical"
+                        android:layout_marginBottom="6dp">
+                        <Button android:id="@+id/btnZoomOut"
+                            android:layout_width="0dp" android:layout_height="48dp"
+                            android:layout_weight="1"
+                            android:text="ZOOM －" android:textSize="11sp" android:textColor="#FFFFFF"
+                            android:background="@drawable/bg_btn"
+                            android:layout_marginEnd="3dp"/>
+                        <Button android:id="@+id/btnZoomIn"
+                            android:layout_width="0dp" android:layout_height="48dp"
+                            android:layout_weight="1"
+                            android:text="ZOOM ＋" android:textSize="11sp" android:textColor="#FFFFFF"
+                            android:background="@drawable/bg_btn"/>
+                    </LinearLayout>
                 </LinearLayout>
 
                 <View android:layout_width="match_parent" android:layout_height="0.5dp"
-                    android:background="#253545" android:layout_marginBottom="5dp"/>
+                    android:background="#253545" android:layout_marginBottom="6dp"/>
 
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                <TextView
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:text="프리셋" android:textColor="#445566"
-                    android:textSize="9sp" android:textAllCaps="true"
-                    android:layout_marginBottom="4dp"/>
+                    android:textSize="10sp" android:textAllCaps="true"
+                    android:layout_marginBottom="4dp" android:textStyle="bold"/>
 
                 <GridLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:columnCount="3">
-                    <Button android:id="@+id/btnP1" android:layout_width="0dp" android:layout_height="38dp"
+                    <Button android:id="@+id/btnP1" android:layout_width="0dp" android:layout_height="56dp"
                         android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="1" android:textSize="11sp"
-                        android:background="@drawable/bg_preset" android:textColor="#BBBBBB"/>
-                    <Button android:id="@+id/btnP2" android:layout_width="0dp" android:layout_height="38dp"
+                        android:text="1" android:textSize="18sp" android:textStyle="bold"
+                        android:background="@drawable/bg_preset" android:textColor="#DDDDDD"/>
+                    <Button android:id="@+id/btnP2" android:layout_width="0dp" android:layout_height="56dp"
                         android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="2" android:textSize="11sp"
-                        android:background="@drawable/bg_preset" android:textColor="#BBBBBB"/>
-                    <Button android:id="@+id/btnP3" android:layout_width="0dp" android:layout_height="38dp"
+                        android:text="2" android:textSize="18sp" android:textStyle="bold"
+                        android:background="@drawable/bg_preset" android:textColor="#DDDDDD"/>
+                    <Button android:id="@+id/btnP3" android:layout_width="0dp" android:layout_height="56dp"
                         android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="3" android:textSize="11sp"
-                        android:background="@drawable/bg_preset" android:textColor="#BBBBBB"/>
-                    <Button android:id="@+id/btnP4" android:layout_width="0dp" android:layout_height="38dp"
+                        android:text="3" android:textSize="18sp" android:textStyle="bold"
+                        android:background="@drawable/bg_preset" android:textColor="#DDDDDD"/>
+                    <Button android:id="@+id/btnP4" android:layout_width="0dp" android:layout_height="56dp"
                         android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="4" android:textSize="11sp"
-                        android:background="@drawable/bg_preset" android:textColor="#BBBBBB"/>
-                    <Button android:id="@+id/btnP5" android:layout_width="0dp" android:layout_height="38dp"
+                        android:text="4" android:textSize="18sp" android:textStyle="bold"
+                        android:background="@drawable/bg_preset" android:textColor="#DDDDDD"/>
+                    <Button android:id="@+id/btnP5" android:layout_width="0dp" android:layout_height="56dp"
                         android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="홈" android:textSize="11sp"
+                        android:text="홈" android:textSize="16sp" android:textStyle="bold"
                         android:background="@drawable/bg_preset" android:textColor="#2979FF"/>
-                    <Button android:id="@+id/btnP6" android:layout_width="0dp" android:layout_height="38dp"
+                    <Button android:id="@+id/btnP6" android:layout_width="0dp" android:layout_height="56dp"
                         android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="6" android:textSize="11sp"
-                        android:background="@drawable/bg_preset" android:textColor="#BBBBBB"/>
-                    <Button android:id="@+id/btnP7" android:layout_width="0dp" android:layout_height="38dp"
+                        android:text="6" android:textSize="18sp" android:textStyle="bold"
+                        android:background="@drawable/bg_preset" android:textColor="#DDDDDD"/>
+                    <Button android:id="@+id/btnP7" android:layout_width="0dp" android:layout_height="56dp"
                         android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="7" android:textSize="11sp"
-                        android:background="@drawable/bg_preset" android:textColor="#BBBBBB"/>
-                    <Button android:id="@+id/btnP8" android:layout_width="0dp" android:layout_height="38dp"
+                        android:text="7" android:textSize="18sp" android:textStyle="bold"
+                        android:background="@drawable/bg_preset" android:textColor="#DDDDDD"/>
+                    <Button android:id="@+id/btnP8" android:layout_width="0dp" android:layout_height="56dp"
                         android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="8" android:textSize="11sp"
-                        android:background="@drawable/bg_preset" android:textColor="#BBBBBB"/>
-                    <Button android:id="@+id/btnP9" android:layout_width="0dp" android:layout_height="38dp"
+                        android:text="8" android:textSize="18sp" android:textStyle="bold"
+                        android:background="@drawable/bg_preset" android:textColor="#DDDDDD"/>
+                    <Button android:id="@+id/btnP9" android:layout_width="0dp" android:layout_height="56dp"
                         android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="9" android:textSize="11sp"
-                        android:background="@drawable/bg_preset" android:textColor="#BBBBBB"/>
+                        android:text="9" android:textSize="18sp" android:textStyle="bold"
+                        android:background="@drawable/bg_preset" android:textColor="#DDDDDD"/>
                 </GridLayout>
 
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:text="프리셋: 길게 눌러 저장"
+                    android:text="길게 눌러 현재위치 저장"
                     android:textColor="#445566" android:textSize="8sp"
                     android:gravity="center" android:layout_marginTop="4dp"/>
 
@@ -327,19 +371,19 @@
                 android:textSize="9sp" android:textAllCaps="true"
                 android:layout_marginBottom="4dp"/>
             <Button android:id="@+id/btnAddCamera"
-                android:layout_width="match_parent" android:layout_height="40dp"
+                android:layout_width="match_parent" android:layout_height="44dp"
                 android:layout_marginBottom="4dp"
-                android:text="+ 카메라 추가" android:textSize="11sp" android:textColor="#CCCCCC"
+                android:text="+ 카메라 추가" android:textSize="12sp" android:textColor="#CCCCCC"
                 android:background="@drawable/bg_btn"/>
             <Button android:id="@+id/btnAddNvr"
-                android:layout_width="match_parent" android:layout_height="40dp"
+                android:layout_width="match_parent" android:layout_height="44dp"
                 android:layout_marginBottom="4dp"
-                android:text="+ NVR 추가" android:textSize="11sp" android:textColor="#CCCCCC"
+                android:text="+ NVR 추가" android:textSize="12sp" android:textColor="#CCCCCC"
                 android:background="@drawable/bg_btn"/>
             <Button android:id="@+id/btnDevices"
-                android:layout_width="match_parent" android:layout_height="40dp"
+                android:layout_width="match_parent" android:layout_height="44dp"
                 android:layout_marginBottom="8dp"
-                android:text="장치 관리" android:textSize="11sp" android:textColor="#CCCCCC"
+                android:text="장치 관리" android:textSize="12sp" android:textColor="#CCCCCC"
                 android:background="@drawable/bg_btn"/>
 
             <View android:layout_width="match_parent" android:layout_height="0.5dp"
@@ -350,9 +394,9 @@
                 android:textSize="9sp" android:textAllCaps="true"
                 android:layout_marginBottom="4dp"/>
             <Button android:id="@+id/btnPlayback"
-                android:layout_width="match_parent" android:layout_height="40dp"
+                android:layout_width="match_parent" android:layout_height="44dp"
                 android:layout_marginBottom="8dp"
-                android:text="녹화 재생" android:textSize="11sp" android:textColor="#CCCCCC"
+                android:text="녹화 재생" android:textSize="12sp" android:textColor="#CCCCCC"
                 android:background="@drawable/bg_btn"/>
 
             <View android:layout_width="match_parent" android:layout_height="0.5dp"
@@ -363,7 +407,7 @@
                 android:textSize="9sp" android:textAllCaps="true"
                 android:layout_marginBottom="4dp"/>
             <LinearLayout
-                android:layout_width="match_parent" android:layout_height="42dp"
+                android:layout_width="match_parent" android:layout_height="44dp"
                 android:orientation="horizontal" android:gravity="center_vertical"
                 android:paddingStart="10dp" android:paddingEnd="8dp"
                 android:background="@drawable/bg_btn">
