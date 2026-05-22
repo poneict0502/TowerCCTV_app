@@ -4,7 +4,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.net.Uri
-import android.widget.TextureView
+import android.view.TextureView
 import java.io.File
 import java.io.FileOutputStream
 import android.os.Bundle
