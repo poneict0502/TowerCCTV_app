@@ -24,6 +24,9 @@
         <activity android:name=".ui.DeviceListActivity" android:exported="false"/>
         <activity android:name=".ui.AddDeviceActivity" android:exported="false"
             android:windowSoftInputMode="adjustResize"/>
+        <activity android:name=".ui.PlayerActivity" android:exported="false"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboardHidden"/>
         <activity android:name=".ui.PlaybackActivity" android:exported="false"
             android:screenOrientation="landscape"/>
 
