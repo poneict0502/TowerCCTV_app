@@ -70,12 +70,14 @@ class MainActivity : AppCompatActivity() {
             val popup = PopupMenu(this, view)
             popup.menu.add(0, 1, 0, "📋  장치 관리")
             popup.menu.add(0, 2, 1, "⚡  기본 카메라 4대 자동 등록")
-            popup.menu.add(0, 3, 2, "──────────────").isEnabled = false
-            popup.menu.add(0, 4, 3, "추후 추가 예정").isEnabled = false
+            popup.menu.add(0, 3, 2, "📡  OCR / 계측 설정")
+            popup.menu.add(0, 4, 3, "──────────────").isEnabled = false
+            popup.menu.add(0, 5, 4, "추후 추가 예정").isEnabled = false
             popup.setOnMenuItemClickListener { item ->
                 when (item.itemId) {
                     1 -> startActivity(Intent(this, DeviceListActivity::class.java))
                     2 -> showAutoRegisterDialog()
+                    3 -> OcrSettingsDialog(this) { /* OCR 상태 변경 시 */ }.show()
                 }
                 true
             }
