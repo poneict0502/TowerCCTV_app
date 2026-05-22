@@ -77,12 +77,23 @@ class AddDeviceActivity : AppCompatActivity() {
             }
         }
 
-        etName     = field("장비 이름 *", "예: 1호기 타워크레인 NVR")
-        etIp       = field("IP 주소 *", "예: 192.168.1.200")
-        etRtspPort = field("RTSP 포트", "554 (기본값)", "554", numeric = true)
-        etHttpPort = field("HTTP 포트", "80 (기본값)", "80",  numeric = true)
-        etUser     = field("사용자명", "admin", "admin")
-        etPass     = field("비밀번호", "")
+        // 신규 추가 시 기본값 자동 채움
+        val isNew = editId == null
+        val usedIps = DeviceStore.load(this).map { it.ip }.toSet()
+        val nextIp = (101..120).map { "192.168.0.$it" }.firstOrNull { it !in usedIps } ?: "192.168.0.101"
+        val lastOctet = nextIp.substringAfterLast(".").toIntOrNull() ?: 101
+        val chNum = lastOctet - 100
+
+        etName     = field("장비 이름 ★ 수정 가능", "예: CH1, 타워상부, 계측계",
+                        if (isNew) "CH$chNum" else "")
+        etIp       = field("IP 주소 ★", "192.168.0.101",
+                        if (isNew) nextIp else "")
+        etRtspPort = field("RTSP 포트", "554", "554", numeric = true)
+        etHttpPort = field("HTTP 포트", "80", "80",  numeric = true)
+        etUser     = field("사용자명", "admin",
+                        if (isNew) "admin" else "admin")
+        etPass     = field("비밀번호", "1234qwer@",
+                        if (isNew) "1234qwer@" else "")
 
         // NVR 전용: 채널 수
         if (devType == DeviceType.NVR) {
