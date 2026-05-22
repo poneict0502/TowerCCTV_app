@@ -3,6 +3,7 @@ package com.pone.towerccctv.ui
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
@@ -10,12 +11,18 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.GestureDetector
+import android.view.Gravity
 import android.view.MotionEvent
+import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.pone.towerccctv.R
@@ -45,15 +52,11 @@ class PlayerActivity : AppCompatActivity() {
     private var isPlaying = false
 
     private lateinit var presetBtns: List<Pair<Button, Int>>
-    private var roiOverlay: RoiOverlayView? = null
 
-    // OSD 갱신 타이머
+    // OSD 갱신
     private val osdHandler = Handler(Looper.getMainLooper())
     private val osdRunnable = object : Runnable {
-        override fun run() {
-            refreshOsd()
-            osdHandler.postDelayed(this, 800L)
-        }
+        override fun run() { refreshOsd(); osdHandler.postDelayed(this, 800L) }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -77,9 +80,9 @@ class PlayerActivity : AppCompatActivity() {
         b.ipPlayer.text  = httpBase.substringAfter("//").substringBefore(":").substringBefore("/")
         setStatus("연결 중...", "#FFB300")
 
-        // 초기 OSD 숨김 (OCR 미활성시)
-        b.osdWindPlayer.visibility   = if (OcrSettings.isOcrEnabled(this)) View.VISIBLE else View.GONE
-        b.osdWeightPlayer.visibility = if (OcrSettings.isOcrEnabled(this)) View.VISIBLE else View.GONE
+        val ocrOn = OcrSettings.isOcrEnabled(this)
+        b.osdWindPlayer.visibility   = if (ocrOn) View.VISIBLE else View.GONE
+        b.osdWeightPlayer.visibility = if (ocrOn) View.VISIBLE else View.GONE
 
         // 스냅샷 배경
         intent.getStringExtra("snapPath")?.let { path ->
@@ -115,7 +118,6 @@ class PlayerActivity : AppCompatActivity() {
         setupDoubleTap()
         startPlaying(rtspUrl)
 
-        // CH4: ROI 설정 버튼, 일반: 녹화 재생
         val isCh4 = httpBase.contains("192.168.0.104") || label == "CH4"
         if (isCh4) {
             b.btnPlayback.text = "📐  ROI 영역 설정"
@@ -133,30 +135,142 @@ class PlayerActivity : AppCompatActivity() {
             }
         }
 
-        // OSD 갱신 시작
-        if (OcrSettings.isOcrEnabled(this)) osdHandler.post(osdRunnable)
+        if (ocrOn) osdHandler.post(osdRunnable)
     }
 
-    // ── OSD 갱신 (SharedPreferences에서 읽기) ──
+    // ── OSD 갱신 ──
     private fun refreshOsd() {
         val wind   = OcrSettings.getLatestWind(this)
         val weight = OcrSettings.getLatestWeight(this)
         val windAlert   = OcrSettings.isLatestWindAlert(this)
         val weightAlert = OcrSettings.isLatestWeightAlert(this)
-        val updatedAt   = OcrSettings.getLatestTime(this)
+        val stale = System.currentTimeMillis() - OcrSettings.getLatestTime(this) > 5000L
 
-        // 5초 이상 업데이트 없으면 회색 (OCR 미작동)
-        val stale = System.currentTimeMillis() - updatedAt > 5000L
-
-        val windTxt   = if (!stale && wind   != null) "🌬  %.1f".format(wind)   else "🌬  --"
-        val weightTxt = if (!stale && weight != null) "⚖  %.0f".format(weight) else "⚖  --"
-
-        b.osdWindPlayer.text   = windTxt
-        b.osdWeightPlayer.text = weightTxt
+        b.osdWindPlayer.text   = if (!stale && wind   != null) "풍속: %.1f".format(wind)   else "풍속: --"
+        b.osdWeightPlayer.text = if (!stale && weight != null) "중량: %.0f".format(weight) else "중량: --"
         b.osdWindPlayer.setTextColor(
             if (windAlert && !stale) Color.parseColor("#FF4444") else Color.WHITE)
         b.osdWeightPlayer.setTextColor(
             if (weightAlert && !stale) Color.parseColor("#FF4444") else Color.WHITE)
+    }
+
+    // ── ROI 설정 (전체화면 오버레이, Dialog 없음) ──
+    private fun showRoiSetup() {
+        // 현재 프레임 캡처
+        val frame = captureCurrentFrame()
+
+        // 루트 뷰에 전체화면 오버레이 추가
+        val root = window.decorView.findViewById<ViewGroup>(android.R.id.content)
+
+        val overlay = FrameLayout(this).apply {
+            setBackgroundColor(Color.parseColor("#F0000000"))
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        }
+
+        // 배경: 캡처 프레임 또는 검정
+        val bgImage = ImageView(this).apply {
+            frame?.let { setImageBitmap(it) }
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            ).also { it.bottomMargin = 120 }
+        }
+        overlay.addView(bgImage)
+
+        // ROI 드로잉 레이어
+        val roiView = RoiOverlayView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            ).also { it.bottomMargin = 120 }
+            loadSavedRois(this@PlayerActivity)
+        }
+        overlay.addView(roiView)
+
+        // 상단 안내 텍스트
+        val tvGuide = TextView(this).apply {
+            text = "아래 버튼 선택 후 화면에서 드래그하여 영역 설정"
+            setTextColor(Color.WHITE); textSize = 15f
+            setBackgroundColor(Color.parseColor("#CC000000"))
+            gravity = Gravity.CENTER
+            setPadding(0, 12, 0, 12)
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        overlay.addView(tvGuide)
+
+        // 하단 버튼 바 (Dialog 없이 → 드래그 가능!)
+        val btnBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setBackgroundColor(Color.parseColor("#DD000000"))
+            setPadding(16, 12, 16, 12)
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, 120
+            ).also { it.gravity = Gravity.BOTTOM }
+        }
+
+        fun makeBtn(text: String, color: String, action: () -> Unit) = Button(this).apply {
+            this.text = text; textSize = 13f
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.parseColor(color))
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                .also { it.marginEnd = 8 }
+            setOnClickListener { action() }
+        }
+
+        val btnWind = makeBtn("🌬 풍속 영역", "#1A3A8F") {
+            roiView.currentMode = RoiOverlayView.RoiMode.WIND
+            roiView.onRoiSet = { _, roi ->
+                OcrSettings.setWindRoi(this, roi)
+                Toast.makeText(this, "풍속 ROI 저장됨", Toast.LENGTH_SHORT).show()
+            }
+            tvGuide.text = "🌬 풍속 영역을 드래그하세요 (파란색)"
+            Toast.makeText(this, "풍속 영역을 드래그하세요", Toast.LENGTH_SHORT).show()
+        }
+
+        val btnWeight = makeBtn("⚖ 중량 영역", "#8F4A00") {
+            roiView.currentMode = RoiOverlayView.RoiMode.WEIGHT
+            roiView.onRoiSet = { _, roi ->
+                OcrSettings.setWeightRoi(this, roi)
+                Toast.makeText(this, "중량 ROI 저장됨", Toast.LENGTH_SHORT).show()
+            }
+            tvGuide.text = "⚖ 중량 영역을 드래그하세요 (주황색)"
+            Toast.makeText(this, "중량 영역을 드래그하세요", Toast.LENGTH_SHORT).show()
+        }
+
+        val btnDone = makeBtn("✅ 저장 완료", "#1A6A2A") {
+            root.removeView(overlay)
+            frame?.recycle()
+            Toast.makeText(this, "ROI 설정 저장 완료!", Toast.LENGTH_SHORT).show()
+        }
+
+        val btnCancel = makeBtn("✕ 취소", "#4A1A1A") {
+            root.removeView(overlay)
+            frame?.recycle()
+        }
+
+        btnBar.addView(btnWind); btnBar.addView(btnWeight)
+        btnBar.addView(btnDone); btnBar.addView(btnCancel)
+        overlay.addView(btnBar)
+
+        root.addView(overlay)
+    }
+
+    private fun captureCurrentFrame(): Bitmap? {
+        return try {
+            for (i in 0 until b.vlcPlayer.childCount) {
+                val child = b.vlcPlayer.getChildAt(i)
+                if (child is TextureView) return child.bitmap
+            }
+            null
+        } catch (e: Exception) { null }
     }
 
     // ── 재생 시작 ──
@@ -169,8 +283,7 @@ class PlayerActivity : AppCompatActivity() {
 
         val media = Media(libVLC, Uri.parse(url))
         media.setHWDecoderEnabled(false, false)
-        media.addOption(":network-caching=300")
-        media.addOption(":rtsp-tcp")
+        media.addOption(":network-caching=300"); media.addOption(":rtsp-tcp")
         p.media = media; media.release()
 
         p.setEventListener { ev ->
@@ -207,7 +320,6 @@ class PlayerActivity : AppCompatActivity() {
         p.play()
     }
 
-    // ── 자동 재연결 ──
     private fun scheduleReconnect() {
         cancelReconnect()
         if (reconnectCount >= MAX_RECONNECT) {
@@ -236,7 +348,6 @@ class PlayerActivity : AppCompatActivity() {
         b.tvStreamStatus.setTextColor(Color.parseColor(colorHex))
     }
 
-    // ── 더블탭 = 그리드 복귀 ──
     private fun setupDoubleTap() {
         val detector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onDoubleTap(e: MotionEvent): Boolean { goBack(); return true }
@@ -249,64 +360,6 @@ class PlayerActivity : AppCompatActivity() {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() { goBack() }
 
-    // ── ROI 설정 (드래그) ──
-    private fun showRoiSetup() {
-        val overlay = RoiOverlayView(this)
-        overlay.setBackgroundColor(Color.parseColor("#55000000"))
-        overlay.loadSavedRois(this)
-        roiOverlay = overlay
-
-        val videoParent = b.vlcPlayer.parent as ViewGroup
-        videoParent.addView(overlay, ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        ))
-
-        // ★ touchOverlay 비활성화 → ROI 드래그 가능하게
-        b.touchOverlay.visibility = View.GONE
-
-        AlertDialog.Builder(this)
-            .setTitle("📐 ROI 영역 설정")
-            .setMessage("버튼 선택 후 화면에서 드래그하세요\n파란색=풍속  주황색=중량")
-            .setItems(arrayOf(
-                "🌬  풍속 영역 드래그",
-                "⚖  중량 영역 드래그",
-                "✅  완료"
-            )) { _, which ->
-                when (which) {
-                    0 -> {
-                        overlay.currentMode = RoiOverlayView.RoiMode.WIND
-                        overlay.onRoiSet = { _, roi ->
-                            OcrSettings.setWindRoi(this, roi)
-                            Toast.makeText(this, "풍속 ROI 저장됨", Toast.LENGTH_SHORT).show()
-                        }
-                        Toast.makeText(this, "풍속 영역을 드래그하세요", Toast.LENGTH_SHORT).show()
-                    }
-                    1 -> {
-                        overlay.currentMode = RoiOverlayView.RoiMode.WEIGHT
-                        overlay.onRoiSet = { _, roi ->
-                            OcrSettings.setWeightRoi(this, roi)
-                            Toast.makeText(this, "중량 ROI 저장됨", Toast.LENGTH_SHORT).show()
-                        }
-                        Toast.makeText(this, "중량 영역을 드래그하세요", Toast.LENGTH_SHORT).show()
-                    }
-                    2 -> {
-                        overlay.currentMode = RoiOverlayView.RoiMode.NONE
-                        videoParent.removeView(overlay)
-                        roiOverlay = null
-                        // ★ touchOverlay 복원
-                        b.touchOverlay.visibility = View.VISIBLE
-                        Toast.makeText(this, "ROI 설정 완료!", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-            .setOnCancelListener {
-                // 다이얼로그 닫혀도 오버레이 유지 (드래그 계속 가능)
-            }
-            .show()
-    }
-
-    // ── 프리셋 ──
     private fun presetKey(id: Int) = "preset_${channelLabel}_$id"
 
     private fun loadPresetNames() {
@@ -349,7 +402,6 @@ class PlayerActivity : AppCompatActivity() {
             .setNegativeButton("취소", null).show()
     }
 
-    // ── 컨트롤 ──
     private fun setupControls() {
         b.ptzToggleRow.setOnClickListener { b.swPtz.isChecked = !b.swPtz.isChecked }
         b.swPtz.setOnCheckedChangeListener { _, on ->
@@ -396,7 +448,6 @@ class PlayerActivity : AppCompatActivity() {
         super.onDestroy()
         cancelReconnect()
         osdHandler.removeCallbacks(osdRunnable)
-        roiOverlay?.let { (b.vlcPlayer.parent as? ViewGroup)?.removeView(it) }
         player?.detachViews(); player?.release(); player = null
         libVLC?.release(); libVLC = null
         b.imgSnapshot.setImageBitmap(null)
