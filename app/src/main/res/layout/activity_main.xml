@@ -163,6 +163,12 @@
                 android:layout_marginTop="42dp"
                 android:background="@android:color/transparent"/>
         </FrameLayout>
+        <!-- 전환 잔상 차단 블랙 커버 (최상위 레이어) -->
+        <FrameLayout android:id="@+id/blackCover"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#000000"
+            android:visibility="gone"/>
     </FrameLayout>
 
     <!-- 우측 제어 패널 (고정) -->

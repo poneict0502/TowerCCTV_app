@@ -7,6 +7,8 @@ import android.os.Bundle
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
+import android.os.Handler
+import android.os.Looper
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.FrameLayout
@@ -77,6 +79,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun enterGridMode() {
+        // 블랙 커버로 즉시 가림
+        b.blackCover.visibility = View.VISIBLE
+        b.blackCover.bringToFront()
+
         // 단독 플레이어 정리
         singlePlayer?.stop()
         singlePlayer?.detachViews()
@@ -123,6 +129,11 @@ class MainActivity : AppCompatActivity() {
                 setDot(i, "gray")
             }
         }
+
+        // 300ms 후 블랙 커버 제거
+        Handler(Looper.getMainLooper()).postDelayed({
+            b.blackCover.visibility = View.GONE
+        }, 300)
     }
 
     private fun startGridStream(idx: Int, ch: Channel) {
@@ -157,7 +168,11 @@ class MainActivity : AppCompatActivity() {
     private fun enterSingleMode(index: Int) {
         if (index >= channels.size) return
 
-        // 그리드 플레이어 모두 정리
+        // 1) 블랙 커버로 즉시 가림 (잔상 완전 차단)
+        b.blackCover.visibility = View.VISIBLE
+        b.blackCover.bringToFront()
+
+        // 2) 그리드 플레이어 모두 정리
         for (i in 0 until 4) {
             gridPlayers[i]?.stop()
             gridPlayers[i]?.detachViews()
@@ -165,13 +180,14 @@ class MainActivity : AppCompatActivity() {
             gridPlayers[i] = null
         }
 
-        // 그리드 숨김
+        // 3) 그리드 숨김, VLC 뷰도 GONE
+        vlcList.forEach { it.visibility = View.GONE }
         b.gridMode.visibility = View.GONE
 
         selectedIndex = index
         val ch = channels[index]
 
-        // 단독 모드 표시
+        // 4) 단독 모드 표시
         b.singleMode.visibility = View.VISIBLE
         b.lblMain.text = ch.label
         b.ipMain.text = ch.extractIp()
@@ -215,6 +231,11 @@ class MainActivity : AppCompatActivity() {
             }
         }
         player.play()
+
+        // 5) 300ms 후 블랙 커버 제거 (플레이어 시작 후)
+        Handler(Looper.getMainLooper()).postDelayed({
+            b.blackCover.visibility = View.GONE
+        }, 300)
 
         ptz = if (ch.hasPtz) PtzController(ch) else null
         b.tvCtrlHint.text = if (ch.hasPtz) "PTZ 활성 (${ch.label})" else "${ch.label} — PTZ 없음"
