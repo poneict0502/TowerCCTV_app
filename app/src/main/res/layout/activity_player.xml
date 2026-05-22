@@ -60,20 +60,38 @@
         android:layout_width="210dp" android:layout_height="match_parent"
         android:orientation="vertical" android:background="#162030">
 
-        <!-- PTZ 스위치 (항상 고정) -->
-        <LinearLayout android:layout_width="match_parent" android:layout_height="44dp"
+        <!-- 아이비온 로고 (패널 최상단) -->
+        <ImageView
+            android:layout_width="match_parent" android:layout_height="44dp"
+            android:src="@drawable/logo_aivion"
+            android:adjustViewBounds="true"
+            android:scaleType="fitCenter"
+            android:background="#0C1E3C"
+            android:paddingStart="10dp" android:paddingEnd="10dp"
+            android:paddingTop="4dp" android:paddingBottom="4dp"/>
+
+        <View android:layout_width="match_parent" android:layout_height="1dp"
+            android:background="#1E3050"/>
+
+        <!-- 방향키 ON/OFF: 전체 행 터치 가능 (스위치 우측 끝 불편 해결) -->
+        <LinearLayout android:id="@+id/ptzToggleRow"
+            android:layout_width="match_parent" android:layout_height="46dp"
             android:orientation="horizontal" android:gravity="center_vertical"
-            android:paddingStart="10dp" android:paddingEnd="8dp"
-            android:background="@drawable/bg_btn" android:layout_margin="6dp">
+            android:paddingStart="14dp" android:paddingEnd="14dp"
+            android:background="@drawable/bg_btn"
+            android:layout_marginStart="6dp" android:layout_marginEnd="6dp"
+            android:layout_marginTop="20dp" android:layout_marginBottom="4dp"
+            android:clickable="true" android:focusable="true">
             <TextView android:layout_width="0dp" android:layout_height="wrap_content"
-                android:layout_weight="1" android:text="방향키"
-                android:textColor="#CCCCCC" android:textSize="12sp" android:textStyle="bold"/>
+                android:layout_weight="1"
+                android:text="▦  방향키  (터치하여 ON/OFF)"
+                android:textColor="#DDDDDD" android:textSize="11sp" android:textStyle="bold"/>
             <androidx.appcompat.widget.SwitchCompat android:id="@+id/swPtz"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:checked="true"/>
+                android:checked="true" android:clickable="false" android:focusable="false"/>
         </LinearLayout>
 
-        <!-- 아래로 2cm 내리기 (56dp 여백) -->
+        <!-- 아래로 여백 (56dp) -->
         <View android:layout_width="match_parent" android:layout_height="56dp"/>
 
         <!-- D-pad (INVISIBLE로 숨김 → 공간 유지) -->
@@ -159,13 +177,15 @@
                         android:text="1" android:textSize="18sp" android:textStyle="bold"
                         android:textColor="#DDDDDD" android:background="@drawable/bg_preset"
                         android:minHeight="0dp" android:maxLines="2"
-                        android:ellipsize="end"/>
+                        android:ellipsize="end"
+                        android:padding="4dp" android:includeFontPadding="false"/>
                     <Button android:id="@+id/btnP2" android:layout_width="0dp" android:layout_height="62dp"
                         android:layout_weight="1"
                         android:text="2" android:textSize="18sp" android:textStyle="bold"
                         android:textColor="#DDDDDD" android:background="@drawable/bg_preset"
                         android:minHeight="0dp" android:maxLines="2"
-                        android:ellipsize="end"/>
+                        android:ellipsize="end"
+                        android:padding="4dp" android:includeFontPadding="false"/>
                 </LinearLayout>
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:layout_marginBottom="3dp">
@@ -174,13 +194,15 @@
                         android:text="3" android:textSize="18sp" android:textStyle="bold"
                         android:textColor="#DDDDDD" android:background="@drawable/bg_preset"
                         android:minHeight="0dp" android:maxLines="2"
-                        android:ellipsize="end"/>
+                        android:ellipsize="end"
+                        android:padding="4dp" android:includeFontPadding="false"/>
                     <Button android:id="@+id/btnP4" android:layout_width="0dp" android:layout_height="62dp"
                         android:layout_weight="1"
                         android:text="4" android:textSize="18sp" android:textStyle="bold"
                         android:textColor="#DDDDDD" android:background="@drawable/bg_preset"
                         android:minHeight="0dp" android:maxLines="2"
-                        android:ellipsize="end"/>
+                        android:ellipsize="end"
+                        android:padding="4dp" android:includeFontPadding="false"/>
                 </LinearLayout>
                 <Button android:id="@+id/btnP5"
                     android:layout_width="match_parent" android:layout_height="62dp"
@@ -188,7 +210,8 @@
                     android:text="5  HOME" android:textSize="16sp" android:textStyle="bold"
                     android:textColor="#2979FF" android:background="@drawable/bg_preset"
                     android:minHeight="0dp" android:maxLines="2"
-                    android:ellipsize="end"/>
+                    android:ellipsize="end"
+                    android:padding="4dp" android:includeFontPadding="false"/>
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:layout_marginBottom="3dp">
                     <Button android:id="@+id/btnP6" android:layout_width="0dp" android:layout_height="62dp"
@@ -196,13 +219,15 @@
                         android:text="6" android:textSize="18sp" android:textStyle="bold"
                         android:textColor="#DDDDDD" android:background="@drawable/bg_preset"
                         android:minHeight="0dp" android:maxLines="2"
-                        android:ellipsize="end"/>
+                        android:ellipsize="end"
+                        android:padding="4dp" android:includeFontPadding="false"/>
                     <Button android:id="@+id/btnP7" android:layout_width="0dp" android:layout_height="62dp"
                         android:layout_weight="1"
                         android:text="7" android:textSize="18sp" android:textStyle="bold"
                         android:textColor="#DDDDDD" android:background="@drawable/bg_preset"
                         android:minHeight="0dp" android:maxLines="2"
-                        android:ellipsize="end"/>
+                        android:ellipsize="end"
+                        android:padding="4dp" android:includeFontPadding="false"/>
                 </LinearLayout>
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:layout_marginBottom="4dp">
@@ -211,13 +236,15 @@
                         android:text="8" android:textSize="18sp" android:textStyle="bold"
                         android:textColor="#DDDDDD" android:background="@drawable/bg_preset"
                         android:minHeight="0dp" android:maxLines="2"
-                        android:ellipsize="end"/>
+                        android:ellipsize="end"
+                        android:padding="4dp" android:includeFontPadding="false"/>
                     <Button android:id="@+id/btnP9" android:layout_width="0dp" android:layout_height="62dp"
                         android:layout_weight="1"
                         android:text="9" android:textSize="18sp" android:textStyle="bold"
                         android:textColor="#DDDDDD" android:background="@drawable/bg_preset"
                         android:minHeight="0dp" android:maxLines="2"
-                        android:ellipsize="end"/>
+                        android:ellipsize="end"
+                        android:padding="4dp" android:includeFontPadding="false"/>
                 </LinearLayout>
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:text="길게 눌러 이름 저장"

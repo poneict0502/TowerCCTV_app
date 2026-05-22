@@ -17,24 +17,12 @@
         android:background="#0D1820"
         android:layout_marginBottom="4dp">
 
-        <!-- 아이비온 로고 이미지 -->
-        <ImageView
-            android:layout_width="wrap_content" android:layout_height="38dp"
-            android:src="@drawable/logo_aivion"
-            android:adjustViewBounds="true"
-            android:scaleType="fitCenter"
-            android:layout_marginEnd="12dp"/>
-
-        <!-- 구분선 -->
-        <View android:layout_width="1dp" android:layout_height="28dp"
-            android:background="#1E3050" android:layout_marginEnd="12dp"/>
-
-        <!-- 앱 이름 -->
+        <!-- 앱 이름 (텍스트만) -->
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:orientation="vertical">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:text="Tower CCTV" android:textColor="#FFFFFF"
-                android:textSize="15sp" android:textStyle="bold"/>
+                android:textSize="16sp" android:textStyle="bold"/>
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:text="타워크레인 모니터링 시스템"
                 android:textColor="#445566" android:textSize="9sp"/>

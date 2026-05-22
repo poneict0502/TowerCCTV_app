@@ -179,7 +179,10 @@ class PlayerActivity : AppCompatActivity() {
 
     // ─── 컨트롤 설정 ───
     private fun setupControls() {
-        // 방향키 스위치 → INVISIBLE (공간 유지, 다른 버튼 위치 고정)
+        // 방향키 ON/OFF: 행 전체 터치 → 스위치 토글 (우측 끝 터치 불편 해결)
+        b.ptzToggleRow.setOnClickListener {
+            b.swPtz.isChecked = !b.swPtz.isChecked
+        }
         b.swPtz.setOnCheckedChangeListener { _, on ->
             b.ptzArea.visibility = if (on) View.VISIBLE else View.INVISIBLE
         }
