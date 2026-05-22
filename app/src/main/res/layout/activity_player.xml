@@ -62,7 +62,7 @@
 
         <!-- 아이비온 로고 (패널 최상단, 정사각형) -->
         <ImageView
-            android:layout_width="match_parent" android:layout_height="100dp"
+            android:layout_width="match_parent" android:layout_height="150dp"
             android:src="@drawable/logo_aivion"
             android:adjustViewBounds="true"
             android:scaleType="fitCenter"
