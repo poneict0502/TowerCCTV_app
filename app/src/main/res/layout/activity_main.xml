@@ -70,6 +70,26 @@
                         android:textSize="10sp" android:textStyle="bold"
                         android:background="#1a2d40" android:paddingStart="4dp" android:paddingEnd="4dp"/>
                 </LinearLayout>
+                <!-- CH1 OSD: 풍속/중량 실시간 표시 -->
+                <LinearLayout android:id="@+id/osdOverlay"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_gravity="top|end"
+                    android:layout_margin="8dp"
+                    android:orientation="vertical"
+                    android:background="#DD000000"
+                    android:paddingStart="10dp" android:paddingEnd="10dp"
+                    android:paddingTop="6dp" android:paddingBottom="6dp"
+                    android:visibility="gone">
+                    <TextView android:id="@+id/osdWind"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="🌬 풍속: --"
+                        android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"/>
+                    <TextView android:id="@+id/osdWeight"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="⚖ 중량: --"
+                        android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"
+                        android:layout_marginTop="2dp"/>
+                </LinearLayout>
                 <View android:id="@+id/touch0"
                     android:layout_width="match_parent" android:layout_height="match_parent"
                     android:background="@android:color/transparent"/>
@@ -160,6 +180,23 @@
                         android:textSize="10sp" android:textStyle="bold"
                         android:background="#1a2d40" android:paddingStart="4dp" android:paddingEnd="4dp"/>
                 </LinearLayout>
+                <!-- OCR 모드 스냅샷 표시 (VLC 위에 오버레이) -->
+                <ImageView android:id="@+id/imgOcrSnapshot"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:visibility="gone"/>
+                <!-- OCR 배지 -->
+                <TextView android:id="@+id/tvOcrBadge"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_gravity="end|bottom"
+                    android:layout_margin="6dp"
+                    android:text="OCR"
+                    android:textColor="#FFFFFF" android:textSize="9sp" android:textStyle="bold"
+                    android:background="#CC2979FF"
+                    android:paddingStart="5dp" android:paddingEnd="5dp"
+                    android:paddingTop="2dp" android:paddingBottom="2dp"
+                    android:visibility="gone"/>
                 <View android:id="@+id/touch3"
                     android:layout_width="match_parent" android:layout_height="match_parent"
                     android:background="@android:color/transparent"/>

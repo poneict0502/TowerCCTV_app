@@ -18,6 +18,8 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.pone.towerccctv.R
+import com.pone.towerccctv.ocr.OcrSettings
+import com.pone.towerccctv.ocr.RoiOverlayView
 import com.pone.towerccctv.controller.PtzController
 import com.pone.towerccctv.databinding.ActivityPlayerBinding
 import com.pone.towerccctv.model.Channel
@@ -99,8 +101,15 @@ class PlayerActivity : AppCompatActivity() {
         setupDoubleTap()
         startPlaying(rtspUrl)
 
-        b.btnPlayback.isEnabled = deviceType == DeviceType.CAMERA
-        b.btnPlayback.setOnClickListener {
+        // CH4 (계측채널): ROI 설정 버튼 표시
+        val isCh4 = httpBase.contains("192.168.0.104") || label == "CH4"
+        if (isCh4) {
+            b.btnPlayback.text = "📐  ROI 영역 설정"
+            b.btnPlayback.isEnabled = true
+            b.btnPlayback.setOnClickListener { showRoiSetup() }
+        } else {
+            b.btnPlayback.isEnabled = deviceType == DeviceType.CAMERA
+            b.btnPlayback.setOnClickListener {
             startActivity(Intent(this, PlaybackActivity::class.java).apply {
                 putExtra("httpBase", httpBase); putExtra("username", username)
                 putExtra("password", password); putExtra("label", label)
