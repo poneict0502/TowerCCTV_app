@@ -4,11 +4,14 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.pone.towerccctv.R
 import com.pone.towerccctv.controller.PtzController
@@ -40,6 +43,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var lblList: List<TextView>
     private lateinit var ipList: List<TextView>
 
+    private lateinit var doubleTapDetector: GestureDetector
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -52,13 +57,26 @@ class MainActivity : AppCompatActivity() {
         lblList  = listOf(b.lbl0, b.lbl1, b.lbl2, b.lbl3)
         ipList   = listOf(b.ip0, b.ip1, b.ip2, b.ip3)
 
-        // libVLC 초기화 - 안정성 우선 (드롭/스킵 옵션 제거)
         val args = arrayListOf(
             "--no-audio",
             "--rtsp-tcp",
             "--network-caching=500"
         )
         libVLC = LibVLC(this, args)
+
+        // 더블탭 감지기
+        doubleTapDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                if (selectedIndex >= 0) enterGridMode()
+                return true
+            }
+        })
+
+        // 단독 모드 영역 더블탭 → 그리드 복귀
+        b.singleMode.setOnTouchListener { _, ev ->
+            doubleTapDetector.onTouchEvent(ev)
+            true
+        }
 
         setupControls()
         applyTheme(true)
@@ -71,30 +89,34 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun enterGridMode() {
-        // 단독 모드 종료
-        singlePlayer?.stop()
-        singlePlayer?.release()
+        // 단독 플레이어 정리 (detachViews 중요!)
+        singlePlayer?.let { p ->
+            p.stop()
+            p.detachViews()
+            p.release()
+        }
         singlePlayer = null
 
         selectedIndex = -1
         b.singleMode.visibility = View.GONE
         b.gridMode.visibility = View.VISIBLE
 
-        // PTZ 비활성
         ptz = null
-        setPtzEnabled(false)
-        b.tvCtrlHint.text = "화면을 탭하여 단독 모드"
+        b.tvCtrlHint.text = "화면 탭 = 단독 모드"
 
-        // 채널 로드
         val devices = DeviceStore.load(this).filter { it.enabled }
         channels = devices.flatMap { it.toChannels() }.take(4)
 
-        // 모든 그리드 플레이어 정리
+        // 그리드 플레이어 모두 정리
         gridPlayers.forEachIndexed { i, p ->
-            p?.stop(); p?.release(); gridPlayers[i] = null
+            p?.let {
+                it.stop()
+                it.detachViews()
+                it.release()
+            }
+            gridPlayers[i] = null
         }
 
-        // 4개 셀 채우기
         for (i in 0 until 4) {
             if (i < channels.size) {
                 val ch = channels[i]
@@ -123,7 +145,6 @@ class MainActivity : AppCompatActivity() {
         player.attachViews(vlcList[i], null, false, false)
         player.videoScale = MediaPlayer.ScaleType.SURFACE_BEST_FIT
 
-        // 서브스트림 사용 (저해상도, 4개 동시 가능)
         val subUrl = ch.toSubStreamUrl()
         val media = Media(libVLC, Uri.parse(subUrl))
         media.setHWDecoderEnabled(true, false)
@@ -147,10 +168,18 @@ class MainActivity : AppCompatActivity() {
     private fun enterSingleMode(index: Int) {
         if (index >= channels.size) return
 
-        // 그리드 플레이어 모두 정지
+        // 그리드 플레이어 모두 정리 (detachViews 필수)
         gridPlayers.forEachIndexed { i, p ->
-            p?.stop(); p?.release(); gridPlayers[i] = null
+            p?.let {
+                it.stop()
+                it.detachViews()
+                it.release()
+            }
+            gridPlayers[i] = null
         }
+
+        // 그리드 VLC 뷰 명시적으로 숨김
+        vlcList.forEach { it.visibility = View.INVISIBLE }
 
         selectedIndex = index
         val ch = channels[index]
@@ -162,8 +191,10 @@ class MainActivity : AppCompatActivity() {
         b.tvLive.visibility = View.GONE
         setMainDot("yellow")
 
-        // 메인스트림 (고해상도)
-        singlePlayer?.release()
+        Toast.makeText(this, "화면 더블탭 = 그리드 복귀", Toast.LENGTH_SHORT).show()
+
+        // 메인스트림
+        singlePlayer?.let { it.stop(); it.detachViews(); it.release() }
         val player = MediaPlayer(libVLC)
         singlePlayer = player
         player.attachViews(b.vlcMain, null, false, false)
@@ -193,37 +224,33 @@ class MainActivity : AppCompatActivity() {
         }
         player.play()
 
-        // PTZ 활성
         ptz = if (ch.hasPtz) PtzController(ch) else null
-        setPtzEnabled(ch.hasPtz)
         b.tvCtrlHint.text = if (ch.hasPtz) "PTZ 활성 (CH${index + 1})" else "이 채널은 PTZ 미지원"
         b.btnPlayback.isEnabled = ch.deviceType == DeviceType.CAMERA
     }
 
-    private fun setPtzEnabled(on: Boolean) {
-        val alpha = if (on) 1f else 0.35f
-        b.joystick.isEnabled = on
-        b.joystick.alpha = alpha
-        b.btnZoomIn.isEnabled = on
-        b.btnZoomOut.isEnabled = on
-        b.btnZoomIn.alpha = alpha
-        b.btnZoomOut.alpha = alpha
-        listOf(b.btnP1, b.btnP2, b.btnP3, b.btnP4, b.btnP5,
-               b.btnP6, b.btnP7, b.btnP8, b.btnP9).forEach {
-            it.isEnabled = on
-            it.alpha = alpha
-        }
-    }
-
     private fun setupControls() {
-        b.btnBack.setOnClickListener { enterGridMode() }
-
         b.tabCtrl.setOnClickListener { switchTab(true) }
         b.tabMgmt.setOnClickListener { switchTab(false) }
 
-        b.joystick.onMove    = { angle, mag -> ptz?.moveByAngle(angle, mag) }
-        b.joystick.onRelease = { ptz?.stop() }
+        // PTZ 컨트롤 표시 토글
+        b.swPtz.setOnCheckedChangeListener { _, on ->
+            b.ptzArea.visibility = if (on) View.VISIBLE else View.GONE
+        }
 
+        // 8방향 D-pad (누르고 있는 동안 이동)
+        setupDirectionButton(b.btnN,  0,  -60)   // ▲
+        setupDirectionButton(b.btnS,  0,   60)   // ▼
+        setupDirectionButton(b.btnW, -60,   0)   // ◀
+        setupDirectionButton(b.btnE,  60,   0)   // ▶
+        setupDirectionButton(b.btnNW, -50, -50)  // ↖
+        setupDirectionButton(b.btnNE,  50, -50)  // ↗
+        setupDirectionButton(b.btnSW, -50,  50)  // ↙
+        setupDirectionButton(b.btnSE,  50,  50)  // ↘
+
+        b.btnStop.setOnClickListener { ptz?.stop() }
+
+        // 줌 누르고 있는 동안 작동
         fun zoomTouch(zoomIn: Boolean) = View.OnTouchListener { _, ev ->
             when (ev.action) {
                 MotionEvent.ACTION_DOWN -> ptz?.zoom(zoomIn)
@@ -233,12 +260,14 @@ class MainActivity : AppCompatActivity() {
         b.btnZoomIn.setOnTouchListener(zoomTouch(true))
         b.btnZoomOut.setOnTouchListener(zoomTouch(false))
 
+        // 프리셋
         listOf(b.btnP1 to 1, b.btnP2 to 2, b.btnP3 to 3, b.btnP4 to 4, b.btnP5 to 5,
                b.btnP6 to 6, b.btnP7 to 7, b.btnP8 to 8, b.btnP9 to 9).forEach { (btn, id) ->
             btn.setOnClickListener { ptz?.gotoPreset(id) }
             btn.setOnLongClickListener {
                 ptz?.setPreset(id)
-                btn.animate().alpha(0.2f).setDuration(80)
+                Toast.makeText(this, "프리셋 $id 위치 저장됨", Toast.LENGTH_SHORT).show()
+                btn.animate().alpha(0.3f).setDuration(80)
                     .withEndAction { btn.animate().alpha(1f).setDuration(200).start() }.start()
                 true
             }
@@ -267,6 +296,21 @@ class MainActivity : AppCompatActivity() {
             isDarkTheme = !isLight
             b.tvThemeLbl.text = if (isDarkTheme) "밝은 화면" else "어두운 화면"
             applyTheme(isDarkTheme)
+        }
+    }
+
+    private fun setupDirectionButton(btn: Button, pan: Int, tilt: Int) {
+        btn.setOnTouchListener { v, ev ->
+            when (ev.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    ptz?.move(pan, tilt)
+                    v.alpha = 0.6f
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    ptz?.stop()
+                    v.alpha = 1f
+                }
+            }; true
         }
     }
 
@@ -311,16 +355,16 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         gridPlayers.forEachIndexed { i, p ->
-            p?.release(); gridPlayers[i] = null
+            p?.let { it.detachViews(); it.release() }
+            gridPlayers[i] = null
         }
-        singlePlayer?.release()
+        singlePlayer?.let { it.detachViews(); it.release() }
         singlePlayer = null
         libVLC?.release()
         libVLC = null
     }
 }
 
-// 확장 함수
 private fun Channel.extractIp(): String {
     return httpBase
         .substringAfter("//")
@@ -329,7 +373,5 @@ private fun Channel.extractIp(): String {
 }
 
 private fun Channel.toSubStreamUrl(): String {
-    // /Streaming/Channels/101 → /Streaming/Channels/102
-    // /Streaming/Channels/201 → /Streaming/Channels/202
     return if (rtspUrl.endsWith("1")) rtspUrl.dropLast(1) + "2" else rtspUrl
 }
