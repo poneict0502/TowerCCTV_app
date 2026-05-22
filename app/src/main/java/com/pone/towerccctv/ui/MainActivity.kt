@@ -96,24 +96,16 @@ class MainActivity : AppCompatActivity() {
 
     // ── 기본 카메라 4대 자동 등록 ──
     private fun showAutoRegisterDialog() {
+        val msg = "다음 설정으로 등록됩니다:\n\n" +
+            "CH1  192.168.0.101  admin / 1234qwer@\n" +
+            "CH2  192.168.0.102  admin / 1q2w3e4r@\n" +
+            "CH3  192.168.0.103  admin / 1q2w3e4r@\n" +
+            "CH4  192.168.0.104  admin / 1q2w3e4r@\n\n" +
+            "기존 등록된 장치는 삭제됩니다."
         AlertDialog.Builder(this)
             .setTitle("기본 카메라 4대 자동 등록")
-            .setMessage(
-                "다음 설정으로 등록됩니다:
-
-" +
-                "CH1  192.168.0.101  admin / 1234qwer@
-" +
-                "CH2  192.168.0.102  admin / 1q2w3e4r@
-" +
-                "CH3  192.168.0.103  admin / 1q2w3e4r@
-" +
-                "CH4  192.168.0.104  admin / 1q2w3e4r@
-
-" +
-                "기존 등록된 장치는 삭제됩니다."
-            )
-            .setPositiveButton("등록") { _, _ ->
+            .setMessage(msg)
+            .setPositiveButton("등록") { _: android.content.DialogInterface, _: Int ->
                 autoRegisterCameras()
             }
             .setNegativeButton("취소", null)
