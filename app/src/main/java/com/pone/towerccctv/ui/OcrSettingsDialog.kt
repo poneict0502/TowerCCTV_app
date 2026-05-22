@@ -4,6 +4,7 @@ import android.app.Dialog
 import android.content.Context
 import android.graphics.Color
 import android.view.ViewGroup
+import android.view.View
 import android.widget.*
 import com.pone.towerccctv.ocr.OcrSettings
 

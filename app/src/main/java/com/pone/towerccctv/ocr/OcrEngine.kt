@@ -99,11 +99,13 @@ class OcrEngine(private val context: Context) {
 
         fun check() {
             if (pending == 0) {
+                val wv = windVal
+                val wt = weightVal
                 val result = OcrResult(
-                    windSpeed = windVal,
-                    weight    = weightVal,
-                    windAlert   = windVal   != null && windVal   >= windLimit,
-                    weightAlert = weightVal != null && weightVal >= weightLimit
+                    windSpeed   = wv,
+                    weight      = wt,
+                    windAlert   = wv != null && wv >= windLimit,
+                    weightAlert = wt != null && wt >= weightLimit
                 )
                 mainHandler.post { onResult?.invoke(result) }
             }
