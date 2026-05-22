@@ -157,49 +157,67 @@
                     <Button android:id="@+id/btnP1" android:layout_width="0dp" android:layout_height="62dp"
                         android:layout_weight="1" android:layout_marginEnd="3dp"
                         android:text="1" android:textSize="18sp" android:textStyle="bold"
-                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"/>
+                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"
+                        android:minHeight="0dp" android:maxLines="2"
+                        android:ellipsize="end"/>
                     <Button android:id="@+id/btnP2" android:layout_width="0dp" android:layout_height="62dp"
                         android:layout_weight="1"
                         android:text="2" android:textSize="18sp" android:textStyle="bold"
-                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"/>
+                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"
+                        android:minHeight="0dp" android:maxLines="2"
+                        android:ellipsize="end"/>
                 </LinearLayout>
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:layout_marginBottom="3dp">
                     <Button android:id="@+id/btnP3" android:layout_width="0dp" android:layout_height="62dp"
                         android:layout_weight="1" android:layout_marginEnd="3dp"
                         android:text="3" android:textSize="18sp" android:textStyle="bold"
-                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"/>
+                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"
+                        android:minHeight="0dp" android:maxLines="2"
+                        android:ellipsize="end"/>
                     <Button android:id="@+id/btnP4" android:layout_width="0dp" android:layout_height="62dp"
                         android:layout_weight="1"
                         android:text="4" android:textSize="18sp" android:textStyle="bold"
-                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"/>
+                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"
+                        android:minHeight="0dp" android:maxLines="2"
+                        android:ellipsize="end"/>
                 </LinearLayout>
                 <Button android:id="@+id/btnP5"
                     android:layout_width="match_parent" android:layout_height="62dp"
                     android:layout_marginBottom="3dp"
                     android:text="5  HOME" android:textSize="16sp" android:textStyle="bold"
-                    android:textColor="#2979FF" android:background="@drawable/bg_preset"/>
+                    android:textColor="#2979FF" android:background="@drawable/bg_preset"
+                    android:minHeight="0dp" android:maxLines="2"
+                    android:ellipsize="end"/>
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:layout_marginBottom="3dp">
                     <Button android:id="@+id/btnP6" android:layout_width="0dp" android:layout_height="62dp"
                         android:layout_weight="1" android:layout_marginEnd="3dp"
                         android:text="6" android:textSize="18sp" android:textStyle="bold"
-                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"/>
+                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"
+                        android:minHeight="0dp" android:maxLines="2"
+                        android:ellipsize="end"/>
                     <Button android:id="@+id/btnP7" android:layout_width="0dp" android:layout_height="62dp"
                         android:layout_weight="1"
                         android:text="7" android:textSize="18sp" android:textStyle="bold"
-                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"/>
+                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"
+                        android:minHeight="0dp" android:maxLines="2"
+                        android:ellipsize="end"/>
                 </LinearLayout>
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:layout_marginBottom="4dp">
                     <Button android:id="@+id/btnP8" android:layout_width="0dp" android:layout_height="62dp"
                         android:layout_weight="1" android:layout_marginEnd="3dp"
                         android:text="8" android:textSize="18sp" android:textStyle="bold"
-                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"/>
+                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"
+                        android:minHeight="0dp" android:maxLines="2"
+                        android:ellipsize="end"/>
                     <Button android:id="@+id/btnP9" android:layout_width="0dp" android:layout_height="62dp"
                         android:layout_weight="1"
                         android:text="9" android:textSize="18sp" android:textStyle="bold"
-                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"/>
+                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"
+                        android:minHeight="0dp" android:maxLines="2"
+                        android:ellipsize="end"/>
                 </LinearLayout>
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:text="길게 눌러 이름 저장"

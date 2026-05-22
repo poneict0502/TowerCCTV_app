@@ -152,8 +152,15 @@ class PlayerActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("preset_names", Context.MODE_PRIVATE)
         presetBtns.forEach { (btn, id) ->
             val name = prefs.getString(presetKey(id), null)
-            btn.text = if (name.isNullOrBlank()) id.toString() else "$id\n$name"
-            btn.textSize = if (name.isNullOrBlank()) 18f else 12f
+            if (name.isNullOrBlank()) {
+                // 이름 없음: 번호만 크게
+                btn.text = id.toString()
+                btn.textSize = 20f
+            } else {
+                // 이름 있음: "번호\n이름" - 고정 크기 (버튼 높이 변경 없음)
+                btn.text = "$id\n$name"
+                btn.textSize = 11f
+            }
         }
     }
 
@@ -161,8 +168,13 @@ class PlayerActivity : AppCompatActivity() {
         getSharedPreferences("preset_names", Context.MODE_PRIVATE)
             .edit().putString(presetKey(id), name).apply()
         val btn = presetBtns.find { it.second == id }?.first ?: return
-        btn.text = if (name.isBlank()) id.toString() else "$id\n$name"
-        btn.textSize = if (name.isBlank()) 18f else 12f
+        if (name.isBlank()) {
+            btn.text = id.toString()
+            btn.textSize = 20f
+        } else {
+            btn.text = "$id\n$name"
+            btn.textSize = 11f
+        }
     }
 
     // ─── 컨트롤 설정 ───
@@ -205,11 +217,16 @@ class PlayerActivity : AppCompatActivity() {
 
         val input = EditText(this).apply {
             setText(current)
-            hint = "프리셋 $id 이름 (비워두면 번호만 표시)"
+            hint = "프리셋 $id 이름 (예: 타워북쪽, 홈위치)"
             setTextColor(Color.WHITE)
             setHintTextColor(Color.GRAY)
             setBackgroundColor(Color.parseColor("#1E1E22"))
             setPadding(16, 12, 16, 12)
+            // 한글 입력 지원
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                        android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            textSize = 16f
+            setSingleLine(false)
         }
 
         AlertDialog.Builder(this)
