@@ -310,17 +310,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun captureFrameOnUiThread(index: Int): Bitmap? = try {
-        val vlcView = vlcList[index]
-        for (i in 0 until vlcView.childCount) {
-            val child = vlcView.getChildAt(i)
-            if (child is TextureView) return child.bitmap
-        }
-        if (vlcView.width > 0 && vlcView.height > 0) {
-            Bitmap.createBitmap(vlcView.width, vlcView.height, Bitmap.Config.ARGB_8888)
-                .also { vlcView.draw(Canvas(it)) }
-        } else null
-    } catch (e: Exception) { null }
+    private fun captureFrameOnUiThread(index: Int): Bitmap? {
+        return try {
+            val vlcView = vlcList[index]
+            for (i in 0 until vlcView.childCount) {
+                val child = vlcView.getChildAt(i)
+                if (child is TextureView) return child.bitmap
+            }
+            if (vlcView.width > 0 && vlcView.height > 0) {
+                Bitmap.createBitmap(vlcView.width, vlcView.height, Bitmap.Config.ARGB_8888)
+                    .also { vlcView.draw(Canvas(it)) }
+            } else null
+        } catch (e: Exception) { null }
+    }
 
     private fun saveBitmapToFile(bmp: Bitmap, index: Int): String? = try {
         val f = File(cacheDir, "snap_$index.jpg")

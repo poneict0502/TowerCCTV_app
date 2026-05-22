@@ -12,18 +12,19 @@ import android.os.Looper
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.pone.towerccctv.R
-import com.pone.towerccctv.ocr.OcrSettings
-import com.pone.towerccctv.ocr.RoiOverlayView
 import com.pone.towerccctv.controller.PtzController
 import com.pone.towerccctv.databinding.ActivityPlayerBinding
 import com.pone.towerccctv.model.Channel
 import com.pone.towerccctv.model.DeviceType
+import com.pone.towerccctv.ocr.OcrSettings
+import com.pone.towerccctv.ocr.RoiOverlayView
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
@@ -36,7 +37,6 @@ class PlayerActivity : AppCompatActivity() {
     private var ptz: PtzController? = null
     private var channelLabel = ""
 
-    // 자동 재연결
     private val reconnectHandler = Handler(Looper.getMainLooper())
     private var reconnectJob: Runnable? = null
     private var reconnectCount = 0
@@ -45,6 +45,9 @@ class PlayerActivity : AppCompatActivity() {
     private var isPlaying = false
 
     private lateinit var presetBtns: List<Pair<Button, Int>>
+
+    // ROI 오버레이
+    private var roiOverlay: RoiOverlayView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,7 +70,7 @@ class PlayerActivity : AppCompatActivity() {
         b.ipPlayer.text  = httpBase.substringAfter("//").substringBefore(":").substringBefore("/")
         setStatus("연결 중...", "#FFB300")
 
-        // 그리드 스냅샷 → 즉시 배경 표시 (블랙 없는 전환)
+        // 스냅샷 배경 (블랙 없는 전환)
         intent.getStringExtra("snapPath")?.let { path ->
             try {
                 BitmapFactory.decodeFile(path)?.let { bmp ->
@@ -75,12 +78,10 @@ class PlayerActivity : AppCompatActivity() {
                     b.imgSnapshot.alpha = 1f
                     b.imgSnapshot.visibility = View.VISIBLE
                 }
-            } catch (e: Exception) { /* 실패 시 무시 */ }
+            } catch (e: Exception) { }
         }
 
-        libVLC = LibVLC(this, arrayListOf(
-            "--no-audio", "--rtsp-tcp", "--network-caching=300"
-        ))
+        libVLC = LibVLC(this, arrayListOf("--no-audio", "--rtsp-tcp", "--network-caching=300"))
 
         if (hasPtz) {
             val ch = Channel(0, label, rtspUrl, httpBase, ptzChannel,
@@ -88,39 +89,43 @@ class PlayerActivity : AppCompatActivity() {
             ptz = PtzController(ch)
         } else {
             b.ptzArea.alpha = 0.3f
-            b.btnZoomIn.alpha  = 0.3f; b.btnZoomIn.isEnabled  = false
+            b.btnZoomIn.alpha = 0.3f; b.btnZoomIn.isEnabled = false
             b.btnZoomOut.alpha = 0.3f; b.btnZoomOut.isEnabled = false
         }
 
-        presetBtns = listOf(b.btnP1 to 1, b.btnP2 to 2, b.btnP3 to 3,
+        presetBtns = listOf(
+            b.btnP1 to 1, b.btnP2 to 2, b.btnP3 to 3,
             b.btnP4 to 4, b.btnP5 to 5, b.btnP6 to 6,
-            b.btnP7 to 7, b.btnP8 to 8, b.btnP9 to 9)
+            b.btnP7 to 7, b.btnP8 to 8, b.btnP9 to 9
+        )
 
         loadPresetNames()
         setupControls()
         setupDoubleTap()
         startPlaying(rtspUrl)
 
-        // CH4 (계측채널): ROI 설정 버튼 표시
+        // CH4 (계측채널): ROI 설정 버튼
         val isCh4 = httpBase.contains("192.168.0.104") || label == "CH4"
         if (isCh4) {
             b.btnPlayback.text = "📐  ROI 영역 설정"
             b.btnPlayback.isEnabled = true
-            b.btnPlayback.setOnClickListener { showRoiSetup() }
+            b.btnPlayback.setOnClickListener { showRoiSetup(httpBase) }
         } else {
             b.btnPlayback.isEnabled = deviceType == DeviceType.CAMERA
             b.btnPlayback.setOnClickListener {
-            startActivity(Intent(this, PlaybackActivity::class.java).apply {
-                putExtra("httpBase", httpBase); putExtra("username", username)
-                putExtra("password", password); putExtra("label", label)
-            })
+                startActivity(Intent(this, PlaybackActivity::class.java).apply {
+                    putExtra("httpBase", httpBase)
+                    putExtra("username", username)
+                    putExtra("password", password)
+                    putExtra("label", label)
+                })
+            }
         }
     }
 
     // ── 재생 시작 ──
     private fun startPlaying(url: String) {
         player?.stop(); player?.detachViews(); player?.release()
-
         val p = MediaPlayer(libVLC)
         player = p
         p.attachViews(b.vlcPlayer, null, true, false)
@@ -136,12 +141,9 @@ class PlayerActivity : AppCompatActivity() {
             runOnUiThread {
                 when (ev.type) {
                     MediaPlayer.Event.Playing -> {
-                        isPlaying = true
-                        reconnectCount = 0
-                        cancelReconnect()
+                        isPlaying = true; reconnectCount = 0; cancelReconnect()
                         setStatus("● LIVE", "#4CAF50")
                         b.dotPlayer.setBackgroundResource(R.drawable.dot_green)
-                        // 스냅샷 페이드아웃
                         if (b.imgSnapshot.visibility == View.VISIBLE) {
                             b.imgSnapshot.animate().alpha(0f).setDuration(500)
                                 .withEndAction {
@@ -151,9 +153,7 @@ class PlayerActivity : AppCompatActivity() {
                         }
                     }
                     MediaPlayer.Event.Buffering -> {
-                        if (!isPlaying) {
-                            b.dotPlayer.setBackgroundResource(R.drawable.dot_yellow)
-                        }
+                        if (!isPlaying) b.dotPlayer.setBackgroundResource(R.drawable.dot_yellow)
                     }
                     MediaPlayer.Event.EncounteredError -> {
                         isPlaying = false
@@ -175,14 +175,11 @@ class PlayerActivity : AppCompatActivity() {
     private fun scheduleReconnect() {
         cancelReconnect()
         if (reconnectCount >= MAX_RECONNECT) {
-            setStatus("연결 실패 (재시도 중단)", "#F44336")
-            return
+            setStatus("연결 실패 (재시도 중단)", "#F44336"); return
         }
         reconnectCount++
-        // 점진적 대기: 3초 → 6초 → 9초... 최대 15초
         val delay = minOf(reconnectCount * 3000L, 15000L)
         setStatus("재연결 중... ($reconnectCount/$MAX_RECONNECT) ${delay/1000}초 후", "#FF9800")
-
         val job = Runnable {
             if (isDestroyed || isFinishing) return@Runnable
             setStatus("재연결 시도 중...", "#FFB300")
@@ -198,7 +195,6 @@ class PlayerActivity : AppCompatActivity() {
         reconnectJob = null
     }
 
-    // ── 상태 표시 ──
     private fun setStatus(text: String, colorHex: String) {
         b.tvStreamStatus.text = text
         b.tvStreamStatus.setTextColor(Color.parseColor(colorHex))
@@ -217,6 +213,56 @@ class PlayerActivity : AppCompatActivity() {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() { goBack() }
 
+    // ── ROI 설정 ──
+    private fun showRoiSetup(httpBase: String) {
+        val overlay = RoiOverlayView(this)
+        overlay.setBackgroundColor(Color.parseColor("#66000000"))
+        overlay.loadSavedRois(this)
+        roiOverlay = overlay
+
+        val videoParent = b.vlcPlayer.parent as ViewGroup
+        videoParent.addView(overlay, ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+
+        AlertDialog.Builder(this)
+            .setTitle("📐 ROI 영역 설정")
+            .setMessage("버튼 선택 후 화면에서 드래그하세요")
+            .setItems(arrayOf(
+                "🌬  풍속 영역 드래그 (파란색)",
+                "⚖  중량 영역 드래그 (주황색)",
+                "✅  완료 (저장)"
+            )) { _, which ->
+                when (which) {
+                    0 -> {
+                        overlay.currentMode = RoiOverlayView.RoiMode.WIND
+                        overlay.onRoiSet = { _, roi ->
+                            OcrSettings.setWindRoi(this, roi)
+                            Toast.makeText(this, "풍속 ROI 저장됨", Toast.LENGTH_SHORT).show()
+                        }
+                        Toast.makeText(this, "풍속 영역을 드래그하세요", Toast.LENGTH_SHORT).show()
+                    }
+                    1 -> {
+                        overlay.currentMode = RoiOverlayView.RoiMode.WEIGHT
+                        overlay.onRoiSet = { _, roi ->
+                            OcrSettings.setWeightRoi(this, roi)
+                            Toast.makeText(this, "중량 ROI 저장됨", Toast.LENGTH_SHORT).show()
+                        }
+                        Toast.makeText(this, "중량 영역을 드래그하세요", Toast.LENGTH_SHORT).show()
+                    }
+                    2 -> {
+                        overlay.currentMode = RoiOverlayView.RoiMode.NONE
+                        videoParent.removeView(overlay)
+                        roiOverlay = null
+                        Toast.makeText(this, "ROI 설정 완료!", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .setOnDismissListener { /* 다이얼로그 닫혀도 오버레이 유지 */ }
+            .show()
+    }
+
     // ── 프리셋 이름 ──
     private fun presetKey(id: Int) = "preset_${channelLabel}_$id"
 
@@ -224,11 +270,8 @@ class PlayerActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("preset_names", Context.MODE_PRIVATE)
         presetBtns.forEach { (btn, id) ->
             val name = prefs.getString(presetKey(id), null)
-            if (name.isNullOrBlank()) {
-                btn.text = id.toString(); btn.textSize = 20f
-            } else {
-                btn.text = "$id\n$name"; btn.textSize = 11f
-            }
+            if (name.isNullOrBlank()) { btn.text = id.toString(); btn.textSize = 20f }
+            else { btn.text = "$id\n$name"; btn.textSize = 11f }
         }
     }
 
@@ -244,8 +287,7 @@ class PlayerActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("preset_names", Context.MODE_PRIVATE)
         val current = prefs.getString(presetKey(id), "") ?: ""
         val input = EditText(this).apply {
-            setText(current)
-            hint = "프리셋 $id 이름 (예: 타워북쪽)"
+            setText(current); hint = "프리셋 $id 이름"
             setTextColor(Color.WHITE); setHintTextColor(Color.GRAY)
             setBackgroundColor(Color.parseColor("#1E1E22"))
             setPadding(16, 12, 16, 12); textSize = 16f
@@ -257,13 +299,11 @@ class PlayerActivity : AppCompatActivity() {
             .setMessage("현재 카메라 위치를 저장합니다")
             .setView(input)
             .setPositiveButton("위치 저장") { _, _ ->
-                val name = input.text.toString().trim()
                 ptz?.setPreset(id)
-                savePresetName(id, name)
+                savePresetName(id, input.text.toString().trim())
                 Toast.makeText(this, "프리셋 $id 저장됨", Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("취소", null)
-            .show()
+            .setNegativeButton("취소", null).show()
     }
 
     // ── 컨트롤 설정 ──
@@ -306,17 +346,15 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
-        super.onStop()
-        cancelReconnect()
-        player?.stop()
+        super.onStop(); cancelReconnect(); player?.stop()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         cancelReconnect()
+        roiOverlay?.let { (b.vlcPlayer.parent as? ViewGroup)?.removeView(it) }
         player?.detachViews(); player?.release(); player = null
         libVLC?.release(); libVLC = null
-        // 스냅샷 메모리 해제
         b.imgSnapshot.setImageBitmap(null)
     }
 }
