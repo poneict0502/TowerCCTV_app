@@ -136,7 +136,7 @@ class MainActivity : AppCompatActivity() {
 
         val subUrl = if (ch.rtspUrl.endsWith("1")) ch.rtspUrl.dropLast(1) + "2" else ch.rtspUrl
         val media = Media(libVLC, Uri.parse(subUrl))
-        media.setHWDecoderEnabled(true, false)
+        media.setHWDecoderEnabled(false, false)
         media.addOption(":network-caching=500")
         media.addOption(":rtsp-tcp")
         player.media = media
@@ -193,7 +193,7 @@ class MainActivity : AppCompatActivity() {
         player.videoScale = MediaPlayer.ScaleType.SURFACE_BEST_FIT
 
         val media = Media(libVLC, Uri.parse(ch.rtspUrl))
-        media.setHWDecoderEnabled(true, false)
+        media.setHWDecoderEnabled(false, false)
         media.addOption(":network-caching=500")
         media.addOption(":rtsp-tcp")
         player.media = media
