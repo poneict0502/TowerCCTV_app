@@ -2,6 +2,7 @@ package com.pone.towerccctv.ui
 
 import android.app.AlertDialog
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
@@ -54,6 +55,19 @@ class PlayerActivity : AppCompatActivity() {
         b.ipPlayer.text  = httpBase.substringAfter("//").substringBefore(":").substringBefore("/")
         setStatus("연결 중...", "#FFB300")
 
+        // ★ 그리드 마지막 프레임을 즉시 배경에 표시 (블랙 화면 없음)
+        val snapPath = intent.getStringExtra("snapPath")
+        if (snapPath != null) {
+            try {
+                val bmp = BitmapFactory.decodeFile(snapPath)
+                if (bmp != null) {
+                    b.imgSnapshot.setImageBitmap(bmp)
+                    b.imgSnapshot.alpha = 1f
+                    b.imgSnapshot.visibility = android.view.View.VISIBLE
+                }
+            } catch (e: Exception) { /* 실패 시 무시 */ }
+        }
+
         libVLC = LibVLC(this, arrayListOf("--no-audio", "--rtsp-tcp", "--network-caching=300"))
 
         // 즉시 재생
@@ -72,9 +86,16 @@ class PlayerActivity : AppCompatActivity() {
             runOnUiThread {
                 when (ev.type) {
                     MediaPlayer.Event.Playing -> {
-                        // 연결 성공 = LIVE 표시 (버퍼링 이후 정상 재생)
                         setStatus("● LIVE", "#4CAF50")
                         b.dotPlayer.setBackgroundResource(R.drawable.dot_green)
+                        // ★ 메인스트림 연결 완료 → 스냅샷 부드럽게 페이드아웃
+                        if (b.imgSnapshot.visibility == android.view.View.VISIBLE) {
+                            b.imgSnapshot.animate()
+                                .alpha(0f)
+                                .setDuration(500)
+                                .withEndAction { b.imgSnapshot.visibility = android.view.View.GONE }
+                                .start()
+                        }
                     }
                     MediaPlayer.Event.Buffering -> {
                         // 최초 연결 중 또는 재연결 중 (오류 아님)

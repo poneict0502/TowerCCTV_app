@@ -1,7 +1,12 @@
 package com.pone.towerccctv.ui
 
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.net.Uri
+import android.widget.TextureView
+import java.io.File
+import java.io.FileOutputStream
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
@@ -107,6 +112,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun openPlayer(index: Int) {
         val ch = channels.getOrNull(index) ?: return
+
+        // ★ 탭 순간 그리드 마지막 프레임 캡처 (블랙 없는 전환용)
+        val snapPath = captureSnapshot(index)
+
         stopAllStreams()
         startActivity(Intent(this, PlayerActivity::class.java).apply {
             putExtra("rtspUrl",    ch.rtspUrl)
@@ -117,8 +126,37 @@ class MainActivity : AppCompatActivity() {
             putExtra("hasPtz",     ch.hasPtz)
             putExtra("ptzChannel", ch.ptzChannel)
             putExtra("deviceType", ch.deviceType.name)
+            snapPath?.let { putExtra("snapPath", it) }
         })
         overridePendingTransition(0, 0)
+    }
+
+    // TextureView에서 마지막 프레임 추출
+    private fun captureSnapshot(index: Int): String? {
+        return try {
+            val vlcView = vlcList[index]
+            // VLCVideoLayout 내부 TextureView 찾기 (useTextureView=true 이므로 존재)
+            var bitmap: Bitmap? = null
+            for (i in 0 until vlcView.childCount) {
+                val child = vlcView.getChildAt(i)
+                if (child is TextureView) {
+                    bitmap = child.bitmap
+                    break
+                }
+            }
+            // TextureView가 없으면 View 전체 draw
+            if (bitmap == null && vlcView.width > 0 && vlcView.height > 0) {
+                bitmap = Bitmap.createBitmap(vlcView.width, vlcView.height, Bitmap.Config.ARGB_8888)
+                vlcView.draw(Canvas(bitmap))
+            }
+            bitmap?.let {
+                val f = File(cacheDir, "snap_$index.jpg")
+                FileOutputStream(f).use { out -> it.compress(Bitmap.CompressFormat.JPEG, 85, out) }
+                f.absolutePath
+            }
+        } catch (e: Exception) {
+            null  // 실패해도 정상 작동 (블랙 화면으로 폴백)
+        }
     }
 
     private fun startStream(idx: Int, ch: Channel) {

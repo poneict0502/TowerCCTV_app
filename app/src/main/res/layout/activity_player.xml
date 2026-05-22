@@ -13,6 +13,13 @@
         <org.videolan.libvlc.util.VLCVideoLayout android:id="@+id/vlcPlayer"
             android:layout_width="match_parent" android:layout_height="match_parent"/>
 
+        <!-- 스냅샷 오버레이: 연결 중 이전 프레임 유지, Playing 시 페이드아웃 -->
+        <ImageView android:id="@+id/imgSnapshot"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:visibility="gone"/>
+
         <!-- 상단 상태바 -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="46dp"
             android:orientation="horizontal" android:gravity="center_vertical"
