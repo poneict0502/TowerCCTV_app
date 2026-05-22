@@ -18,10 +18,10 @@
 
         <!-- 상단 상태바 -->
         <LinearLayout
-            android:layout_width="match_parent" android:layout_height="42dp"
+            android:layout_width="match_parent" android:layout_height="46dp"
             android:orientation="horizontal" android:gravity="center_vertical"
             android:paddingStart="14dp" android:paddingEnd="14dp"
-            android:background="#CC000000">
+            android:background="#DD000000">
             <View android:id="@+id/dotPlayer"
                 android:layout_width="12dp" android:layout_height="12dp"
                 android:background="@drawable/dot_gray" android:layout_marginEnd="10dp"/>
@@ -29,22 +29,26 @@
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:text="--" android:textColor="#FFFFFF"
                 android:textSize="20sp" android:textStyle="bold"
-                android:layout_marginEnd="12dp"/>
+                android:layout_marginEnd="10dp"/>
             <TextView android:id="@+id/ipPlayer"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#AACCFF" android:textSize="14sp"
+                android:layout_marginEnd="10dp"/>
+            <TextView android:id="@+id/tvStreamStatus"
                 android:layout_width="0dp" android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textColor="#AACCFF" android:textSize="15sp"/>
-            <TextView android:id="@+id/tvLive"
+                android:text="연결 중..." android:textColor="#FFB300"
+                android:textSize="13sp" android:textStyle="bold"/>
+            <TextView
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="● LIVE" android:textColor="#4CAF50"
-                android:textSize="14sp" android:textStyle="bold"
-                android:layout_marginEnd="16dp" android:visibility="gone"/>
-            <Button android:id="@+id/btnGridBack"
-                android:layout_width="wrap_content" android:layout_height="32dp"
-                android:text="◀ 그리드" android:textSize="12sp"
-                android:textColor="#FFFFFF" android:background="@drawable/bg_btn"
-                android:paddingStart="12dp" android:paddingEnd="12dp"/>
+                android:text="더블탭 or 뒤로가기 = 그리드"
+                android:textColor="#667788" android:textSize="11sp"/>
         </LinearLayout>
+        <!-- 더블탭 감지용 투명 레이어 (상태바 아래 영역) -->
+        <View android:id="@+id/touchOverlay"
+            android:layout_width="match_parent" android:layout_height="match_parent"
+            android:layout_marginTop="46dp"
+            android:background="@android:color/transparent"/>
     </FrameLayout>
 
     <!-- 우측: PTZ 패널 -->
