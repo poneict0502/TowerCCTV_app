@@ -7,6 +7,7 @@
     android:padding="6dp"
     android:background="#1E2A3A">
 
+    <!-- 영상 영역 -->
     <FrameLayout
         android:id="@+id/videoArea"
         android:layout_width="0dp"
@@ -14,16 +15,16 @@
         android:layout_weight="1"
         android:layout_marginEnd="6dp">
 
+        <!-- 그리드 모드 -->
         <LinearLayout android:id="@+id/gridMode"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:visibility="visible">
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:orientation="horizontal"
+                android:layout_width="match_parent" android:layout_height="0dp"
+                android:layout_weight="1" android:orientation="horizontal"
                 android:layout_marginBottom="3dp">
 
                 <FrameLayout android:id="@+id/cell0"
@@ -32,23 +33,23 @@
                     android:background="#111820">
                     <org.videolan.libvlc.util.VLCVideoLayout android:id="@+id/vlc0"
                         android:layout_width="match_parent" android:layout_height="match_parent"/>
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="22dp"
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="32dp"
                         android:orientation="horizontal" android:gravity="center_vertical"
-                        android:paddingStart="8dp" android:paddingEnd="8dp"
-                        android:background="#99000000">
-                        <View android:id="@+id/dot0"
-                            android:layout_width="6dp" android:layout_height="6dp"
-                            android:background="@drawable/dot_gray" android:layout_marginEnd="6dp"/>
-                        <TextView android:id="@+id/lbl0"
-                            android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="--"
-                            android:textColor="#FFFFFF" android:textSize="10sp"
-                            android:textStyle="bold" android:layout_marginEnd="6dp"/>
-                        <TextView android:id="@+id/ip0"
-                            android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text=""
-                            android:textColor="#AACCFF" android:textSize="9sp"/>
+                        android:paddingStart="10dp" android:paddingEnd="10dp"
+                        android:background="#DD000000">
+                        <View android:id="@+id/dot0" android:layout_width="9dp" android:layout_height="9dp"
+                            android:background="@drawable/dot_gray" android:layout_marginEnd="8dp"/>
+                        <TextView android:id="@+id/lbl0" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:text="--"
+                            android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"
+                            android:layout_marginEnd="8dp"/>
+                        <TextView android:id="@+id/ip0" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="#AACCFF" android:textSize="14sp"/>
                     </LinearLayout>
+                    <View android:id="@+id/touch0"
+                        android:layout_width="match_parent" android:layout_height="match_parent"
+                        android:background="@android:color/transparent"/>
                 </FrameLayout>
 
                 <FrameLayout android:id="@+id/cell1"
@@ -56,31 +57,29 @@
                     android:layout_weight="1" android:background="#111820">
                     <org.videolan.libvlc.util.VLCVideoLayout android:id="@+id/vlc1"
                         android:layout_width="match_parent" android:layout_height="match_parent"/>
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="22dp"
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="32dp"
                         android:orientation="horizontal" android:gravity="center_vertical"
-                        android:paddingStart="8dp" android:paddingEnd="8dp"
-                        android:background="#99000000">
-                        <View android:id="@+id/dot1"
-                            android:layout_width="6dp" android:layout_height="6dp"
-                            android:background="@drawable/dot_gray" android:layout_marginEnd="6dp"/>
-                        <TextView android:id="@+id/lbl1"
-                            android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="--"
-                            android:textColor="#FFFFFF" android:textSize="10sp"
-                            android:textStyle="bold" android:layout_marginEnd="6dp"/>
-                        <TextView android:id="@+id/ip1"
-                            android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text=""
-                            android:textColor="#AACCFF" android:textSize="9sp"/>
+                        android:paddingStart="10dp" android:paddingEnd="10dp"
+                        android:background="#DD000000">
+                        <View android:id="@+id/dot1" android:layout_width="9dp" android:layout_height="9dp"
+                            android:background="@drawable/dot_gray" android:layout_marginEnd="8dp"/>
+                        <TextView android:id="@+id/lbl1" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:text="--"
+                            android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"
+                            android:layout_marginEnd="8dp"/>
+                        <TextView android:id="@+id/ip1" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="#AACCFF" android:textSize="14sp"/>
                     </LinearLayout>
+                    <View android:id="@+id/touch1"
+                        android:layout_width="match_parent" android:layout_height="match_parent"
+                        android:background="@android:color/transparent"/>
                 </FrameLayout>
             </LinearLayout>
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:orientation="horizontal">
+                android:layout_width="match_parent" android:layout_height="0dp"
+                android:layout_weight="1" android:orientation="horizontal">
 
                 <FrameLayout android:id="@+id/cell2"
                     android:layout_width="0dp" android:layout_height="match_parent"
@@ -88,23 +87,23 @@
                     android:background="#111820">
                     <org.videolan.libvlc.util.VLCVideoLayout android:id="@+id/vlc2"
                         android:layout_width="match_parent" android:layout_height="match_parent"/>
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="22dp"
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="32dp"
                         android:orientation="horizontal" android:gravity="center_vertical"
-                        android:paddingStart="8dp" android:paddingEnd="8dp"
-                        android:background="#99000000">
-                        <View android:id="@+id/dot2"
-                            android:layout_width="6dp" android:layout_height="6dp"
-                            android:background="@drawable/dot_gray" android:layout_marginEnd="6dp"/>
-                        <TextView android:id="@+id/lbl2"
-                            android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="--"
-                            android:textColor="#FFFFFF" android:textSize="10sp"
-                            android:textStyle="bold" android:layout_marginEnd="6dp"/>
-                        <TextView android:id="@+id/ip2"
-                            android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text=""
-                            android:textColor="#AACCFF" android:textSize="9sp"/>
+                        android:paddingStart="10dp" android:paddingEnd="10dp"
+                        android:background="#DD000000">
+                        <View android:id="@+id/dot2" android:layout_width="9dp" android:layout_height="9dp"
+                            android:background="@drawable/dot_gray" android:layout_marginEnd="8dp"/>
+                        <TextView android:id="@+id/lbl2" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:text="--"
+                            android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"
+                            android:layout_marginEnd="8dp"/>
+                        <TextView android:id="@+id/ip2" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="#AACCFF" android:textSize="14sp"/>
                     </LinearLayout>
+                    <View android:id="@+id/touch2"
+                        android:layout_width="match_parent" android:layout_height="match_parent"
+                        android:background="@android:color/transparent"/>
                 </FrameLayout>
 
                 <FrameLayout android:id="@+id/cell3"
@@ -112,316 +111,285 @@
                     android:layout_weight="1" android:background="#111820">
                     <org.videolan.libvlc.util.VLCVideoLayout android:id="@+id/vlc3"
                         android:layout_width="match_parent" android:layout_height="match_parent"/>
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="22dp"
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="32dp"
                         android:orientation="horizontal" android:gravity="center_vertical"
-                        android:paddingStart="8dp" android:paddingEnd="8dp"
-                        android:background="#99000000">
-                        <View android:id="@+id/dot3"
-                            android:layout_width="6dp" android:layout_height="6dp"
-                            android:background="@drawable/dot_gray" android:layout_marginEnd="6dp"/>
-                        <TextView android:id="@+id/lbl3"
-                            android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="--"
-                            android:textColor="#FFFFFF" android:textSize="10sp"
-                            android:textStyle="bold" android:layout_marginEnd="6dp"/>
-                        <TextView android:id="@+id/ip3"
-                            android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text=""
-                            android:textColor="#AACCFF" android:textSize="9sp"/>
+                        android:paddingStart="10dp" android:paddingEnd="10dp"
+                        android:background="#DD000000">
+                        <View android:id="@+id/dot3" android:layout_width="9dp" android:layout_height="9dp"
+                            android:background="@drawable/dot_gray" android:layout_marginEnd="8dp"/>
+                        <TextView android:id="@+id/lbl3" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:text="--"
+                            android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"
+                            android:layout_marginEnd="8dp"/>
+                        <TextView android:id="@+id/ip3" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="#AACCFF" android:textSize="14sp"/>
                     </LinearLayout>
+                    <View android:id="@+id/touch3"
+                        android:layout_width="match_parent" android:layout_height="match_parent"
+                        android:background="@android:color/transparent"/>
                 </FrameLayout>
             </LinearLayout>
         </LinearLayout>
 
+        <!-- 단독 모드 -->
         <FrameLayout android:id="@+id/singleMode"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="#111820"
-            android:visibility="gone">
+            android:layout_width="match_parent" android:layout_height="match_parent"
+            android:background="#111820" android:visibility="gone">
             <org.videolan.libvlc.util.VLCVideoLayout android:id="@+id/vlcMain"
                 android:layout_width="match_parent" android:layout_height="match_parent"/>
-            <LinearLayout
-                android:layout_width="match_parent" android:layout_height="32dp"
+            <LinearLayout android:layout_width="match_parent" android:layout_height="42dp"
                 android:orientation="horizontal" android:gravity="center_vertical"
-                android:paddingStart="10dp" android:paddingEnd="10dp"
-                android:background="#99000000">
-                <View android:id="@+id/dotMain"
-                    android:layout_width="8dp" android:layout_height="8dp"
-                    android:background="@drawable/dot_gray" android:layout_marginEnd="7dp"/>
-                <TextView android:id="@+id/lblMain"
-                    android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="--"
-                    android:textColor="#FFFFFF" android:textSize="12sp"
-                    android:textStyle="bold" android:layout_marginEnd="8dp"/>
-                <TextView android:id="@+id/ipMain"
-                    android:layout_width="0dp" android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text=""
-                    android:textColor="#AACCFF" android:textSize="10sp"/>
-                <TextView android:id="@+id/tvLive"
-                    android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="● LIVE"
-                    android:textColor="#4CAF50" android:textSize="10sp"
-                    android:layout_marginEnd="6dp" android:visibility="gone"/>
-                <TextView
-                    android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="더블탭=그리드"
-                    android:textColor="#888888" android:textSize="9sp"/>
+                android:paddingStart="14dp" android:paddingEnd="14dp"
+                android:background="#DD000000">
+                <View android:id="@+id/dotMain" android:layout_width="12dp" android:layout_height="12dp"
+                    android:background="@drawable/dot_gray" android:layout_marginEnd="10dp"/>
+                <TextView android:id="@+id/lblMain" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:text="--"
+                    android:textColor="#FFFFFF" android:textSize="20sp" android:textStyle="bold"
+                    android:layout_marginEnd="12dp"/>
+                <TextView android:id="@+id/ipMain" android:layout_width="0dp"
+                    android:layout_height="wrap_content" android:layout_weight="1"
+                    android:textColor="#AACCFF" android:textSize="16sp"/>
+                <TextView android:id="@+id/tvLive" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:text="● LIVE"
+                    android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold"
+                    android:layout_marginEnd="10dp" android:visibility="gone"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="더블탭=그리드" android:textColor="#AAAAAA" android:textSize="12sp"/>
             </LinearLayout>
+            <View android:id="@+id/touchMain"
+                android:layout_width="match_parent" android:layout_height="match_parent"
+                android:layout_marginTop="42dp"
+                android:background="@android:color/transparent"/>
         </FrameLayout>
     </FrameLayout>
 
+    <!-- 우측 제어 패널 (고정) -->
     <LinearLayout android:id="@+id/rightPanel"
         android:layout_width="200dp"
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:background="#162030">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
+        <!-- 탭 헤더 -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="40dp"
             android:orientation="horizontal">
             <TextView android:id="@+id/tabCtrl"
                 android:layout_width="0dp" android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:text="제어" android:textSize="13sp" android:textStyle="bold"
+                android:layout_weight="1" android:text="제어"
+                android:textSize="13sp" android:textStyle="bold"
                 android:textColor="#2979FF" android:gravity="center"
                 android:background="#1a2d40"/>
             <TextView android:id="@+id/tabMgmt"
                 android:layout_width="0dp" android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:text="관리" android:textSize="13sp" android:textStyle="bold"
+                android:layout_weight="1" android:text="관리"
+                android:textSize="13sp" android:textStyle="bold"
                 android:textColor="#556677" android:gravity="center"/>
         </LinearLayout>
-        <View android:layout_width="match_parent" android:layout_height="0.5dp"
-            android:background="#253545"/>
+        <View android:layout_width="match_parent" android:layout_height="1dp"
+            android:background="#2979FF"/>
 
+        <!-- 제어 탭 내용 -->
         <ScrollView android:id="@+id/panelCtrl"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:fillViewport="true">
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="6dp">
+            android:layout_width="match_parent" android:layout_height="0dp"
+            android:layout_weight="1" android:fillViewport="true">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="6dp">
 
                 <TextView android:id="@+id/tvCtrlHint"
                     android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:text="화면 탭 = 단독 모드"
                     android:textColor="#778899" android:textSize="10sp"
-                    android:gravity="center" android:layout_marginBottom="4dp"/>
+                    android:gravity="center" android:layout_marginBottom="6dp"/>
 
-                <LinearLayout android:id="@+id/ptzToggleRow"
-                    android:layout_width="match_parent" android:layout_height="38dp"
+                <!-- 방향키 ON/OFF 스위치 -->
+                <LinearLayout android:layout_width="match_parent" android:layout_height="40dp"
                     android:orientation="horizontal" android:gravity="center_vertical"
-                    android:paddingStart="8dp" android:paddingEnd="8dp"
-                    android:background="@drawable/bg_btn"
-                    android:layout_marginBottom="6dp">
-                    <TextView
-                        android:layout_width="0dp" android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="PTZ 컨트롤"
-                        android:textColor="#CCCCCC" android:textSize="11sp" android:textStyle="bold"/>
+                    android:paddingStart="10dp" android:paddingEnd="8dp"
+                    android:background="@drawable/bg_btn" android:layout_marginBottom="4dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="방향키"
+                        android:textColor="#CCCCCC" android:textSize="12sp" android:textStyle="bold"/>
                     <androidx.appcompat.widget.SwitchCompat android:id="@+id/swPtz"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:checked="true"/>
                 </LinearLayout>
 
-                <LinearLayout android:id="@+id/ptzArea"
+                <!-- D-pad 9버튼 (방향키 스위치로만 토글) -->
+                <GridLayout android:id="@+id/ptzArea"
                     android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:columnCount="3" android:layout_marginBottom="4dp">
+                    <Button android:id="@+id/btnNW" android:layout_width="0dp" android:layout_height="54dp"
+                        android:layout_columnWeight="1" android:layout_margin="2dp"
+                        android:text="↖" android:textSize="20sp"
+                        android:background="@drawable/bg_btn" android:textColor="#BBBBBB"/>
+                    <Button android:id="@+id/btnN" android:layout_width="0dp" android:layout_height="54dp"
+                        android:layout_columnWeight="1" android:layout_margin="2dp"
+                        android:text="▲" android:textSize="22sp"
+                        android:background="@drawable/bg_btn" android:textColor="#FFFFFF"/>
+                    <Button android:id="@+id/btnNE" android:layout_width="0dp" android:layout_height="54dp"
+                        android:layout_columnWeight="1" android:layout_margin="2dp"
+                        android:text="↗" android:textSize="20sp"
+                        android:background="@drawable/bg_btn" android:textColor="#BBBBBB"/>
+                    <Button android:id="@+id/btnW" android:layout_width="0dp" android:layout_height="54dp"
+                        android:layout_columnWeight="1" android:layout_margin="2dp"
+                        android:text="◀" android:textSize="22sp"
+                        android:background="@drawable/bg_btn" android:textColor="#FFFFFF"/>
+                    <Button android:id="@+id/btnStop" android:layout_width="0dp" android:layout_height="54dp"
+                        android:layout_columnWeight="1" android:layout_margin="2dp"
+                        android:text="■" android:textSize="16sp"
+                        android:background="@drawable/bg_preset" android:textColor="#FF6B6B"/>
+                    <Button android:id="@+id/btnE" android:layout_width="0dp" android:layout_height="54dp"
+                        android:layout_columnWeight="1" android:layout_margin="2dp"
+                        android:text="▶" android:textSize="22sp"
+                        android:background="@drawable/bg_btn" android:textColor="#FFFFFF"/>
+                    <Button android:id="@+id/btnSW" android:layout_width="0dp" android:layout_height="54dp"
+                        android:layout_columnWeight="1" android:layout_margin="2dp"
+                        android:text="↙" android:textSize="20sp"
+                        android:background="@drawable/bg_btn" android:textColor="#BBBBBB"/>
+                    <Button android:id="@+id/btnS" android:layout_width="0dp" android:layout_height="54dp"
+                        android:layout_columnWeight="1" android:layout_margin="2dp"
+                        android:text="▼" android:textSize="22sp"
+                        android:background="@drawable/bg_btn" android:textColor="#FFFFFF"/>
+                    <Button android:id="@+id/btnSE" android:layout_width="0dp" android:layout_height="54dp"
+                        android:layout_columnWeight="1" android:layout_margin="2dp"
+                        android:text="↘" android:textSize="20sp"
+                        android:background="@drawable/bg_btn" android:textColor="#BBBBBB"/>
+                </GridLayout>
 
-                    <GridLayout
-                        android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:columnCount="3" android:layout_marginBottom="6dp">
-                        <Button android:id="@+id/btnNW"
-                            android:layout_width="0dp" android:layout_height="56dp"
-                            android:layout_columnWeight="1" android:layout_margin="2dp"
-                            android:text="↖" android:textSize="18sp"
-                            android:background="@drawable/bg_btn" android:textColor="#CCCCCC"/>
-                        <Button android:id="@+id/btnN"
-                            android:layout_width="0dp" android:layout_height="56dp"
-                            android:layout_columnWeight="1" android:layout_margin="2dp"
-                            android:text="▲" android:textSize="20sp"
-                            android:background="@drawable/bg_btn" android:textColor="#FFFFFF"/>
-                        <Button android:id="@+id/btnNE"
-                            android:layout_width="0dp" android:layout_height="56dp"
-                            android:layout_columnWeight="1" android:layout_margin="2dp"
-                            android:text="↗" android:textSize="18sp"
-                            android:background="@drawable/bg_btn" android:textColor="#CCCCCC"/>
-                        <Button android:id="@+id/btnW"
-                            android:layout_width="0dp" android:layout_height="56dp"
-                            android:layout_columnWeight="1" android:layout_margin="2dp"
-                            android:text="◀" android:textSize="20sp"
-                            android:background="@drawable/bg_btn" android:textColor="#FFFFFF"/>
-                        <Button android:id="@+id/btnStop"
-                            android:layout_width="0dp" android:layout_height="56dp"
-                            android:layout_columnWeight="1" android:layout_margin="2dp"
-                            android:text="■" android:textSize="14sp"
-                            android:background="@drawable/bg_preset" android:textColor="#FF6B6B"/>
-                        <Button android:id="@+id/btnE"
-                            android:layout_width="0dp" android:layout_height="56dp"
-                            android:layout_columnWeight="1" android:layout_margin="2dp"
-                            android:text="▶" android:textSize="20sp"
-                            android:background="@drawable/bg_btn" android:textColor="#FFFFFF"/>
-                        <Button android:id="@+id/btnSW"
-                            android:layout_width="0dp" android:layout_height="56dp"
-                            android:layout_columnWeight="1" android:layout_margin="2dp"
-                            android:text="↙" android:textSize="18sp"
-                            android:background="@drawable/bg_btn" android:textColor="#CCCCCC"/>
-                        <Button android:id="@+id/btnS"
-                            android:layout_width="0dp" android:layout_height="56dp"
-                            android:layout_columnWeight="1" android:layout_margin="2dp"
-                            android:text="▼" android:textSize="20sp"
-                            android:background="@drawable/bg_btn" android:textColor="#FFFFFF"/>
-                        <Button android:id="@+id/btnSE"
-                            android:layout_width="0dp" android:layout_height="56dp"
-                            android:layout_columnWeight="1" android:layout_margin="2dp"
-                            android:text="↘" android:textSize="18sp"
-                            android:background="@drawable/bg_btn" android:textColor="#CCCCCC"/>
-                    </GridLayout>
-
-                    <LinearLayout
-                        android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:orientation="horizontal" android:gravity="center_vertical"
-                        android:layout_marginBottom="6dp">
-                        <Button android:id="@+id/btnZoomOut"
-                            android:layout_width="0dp" android:layout_height="48dp"
-                            android:layout_weight="1"
-                            android:text="ZOOM －" android:textSize="11sp" android:textColor="#FFFFFF"
-                            android:background="@drawable/bg_btn"
-                            android:layout_marginEnd="3dp"/>
-                        <Button android:id="@+id/btnZoomIn"
-                            android:layout_width="0dp" android:layout_height="48dp"
-                            android:layout_weight="1"
-                            android:text="ZOOM ＋" android:textSize="11sp" android:textColor="#FFFFFF"
-                            android:background="@drawable/bg_btn"/>
-                    </LinearLayout>
+                <!-- ZOOM 버튼 (항상 표시, 스위치와 무관) -->
+                <LinearLayout android:id="@+id/zoomRow"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:layout_marginBottom="6dp">
+                    <Button android:id="@+id/btnZoomOut"
+                        android:layout_width="0dp" android:layout_height="52dp"
+                        android:layout_weight="1" android:layout_marginEnd="3dp"
+                        android:text="ZOOM－" android:textSize="12sp" android:textStyle="bold"
+                        android:textColor="#FFFFFF" android:background="@drawable/bg_btn"/>
+                    <Button android:id="@+id/btnZoomIn"
+                        android:layout_width="0dp" android:layout_height="52dp"
+                        android:layout_weight="1"
+                        android:text="ZOOM＋" android:textSize="12sp" android:textStyle="bold"
+                        android:textColor="#FFFFFF" android:background="@drawable/bg_btn"/>
                 </LinearLayout>
 
-                <View android:layout_width="match_parent" android:layout_height="0.5dp"
+                <View android:layout_width="match_parent" android:layout_height="1dp"
                     android:background="#253545" android:layout_marginBottom="6dp"/>
 
-                <TextView
-                    android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="프리셋" android:textColor="#445566"
-                    android:textSize="10sp" android:textAllCaps="true"
-                    android:layout_marginBottom="4dp" android:textStyle="bold"/>
+                <!-- 프리셋 2×5 배치 -->
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="PRESET" android:textColor="#556677"
+                    android:textSize="10sp" android:textStyle="bold"
+                    android:layout_marginBottom="4dp"/>
 
-                <GridLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:columnCount="3">
-                    <Button android:id="@+id/btnP1" android:layout_width="0dp" android:layout_height="56dp"
-                        android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="1" android:textSize="18sp" android:textStyle="bold"
-                        android:background="@drawable/bg_preset" android:textColor="#DDDDDD"/>
-                    <Button android:id="@+id/btnP2" android:layout_width="0dp" android:layout_height="56dp"
-                        android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="2" android:textSize="18sp" android:textStyle="bold"
-                        android:background="@drawable/bg_preset" android:textColor="#DDDDDD"/>
-                    <Button android:id="@+id/btnP3" android:layout_width="0dp" android:layout_height="56dp"
-                        android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="3" android:textSize="18sp" android:textStyle="bold"
-                        android:background="@drawable/bg_preset" android:textColor="#DDDDDD"/>
-                    <Button android:id="@+id/btnP4" android:layout_width="0dp" android:layout_height="56dp"
-                        android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="4" android:textSize="18sp" android:textStyle="bold"
-                        android:background="@drawable/bg_preset" android:textColor="#DDDDDD"/>
-                    <Button android:id="@+id/btnP5" android:layout_width="0dp" android:layout_height="56dp"
-                        android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="홈" android:textSize="16sp" android:textStyle="bold"
-                        android:background="@drawable/bg_preset" android:textColor="#2979FF"/>
-                    <Button android:id="@+id/btnP6" android:layout_width="0dp" android:layout_height="56dp"
-                        android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="6" android:textSize="18sp" android:textStyle="bold"
-                        android:background="@drawable/bg_preset" android:textColor="#DDDDDD"/>
-                    <Button android:id="@+id/btnP7" android:layout_width="0dp" android:layout_height="56dp"
-                        android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="7" android:textSize="18sp" android:textStyle="bold"
-                        android:background="@drawable/bg_preset" android:textColor="#DDDDDD"/>
-                    <Button android:id="@+id/btnP8" android:layout_width="0dp" android:layout_height="56dp"
-                        android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="8" android:textSize="18sp" android:textStyle="bold"
-                        android:background="@drawable/bg_preset" android:textColor="#DDDDDD"/>
-                    <Button android:id="@+id/btnP9" android:layout_width="0dp" android:layout_height="56dp"
-                        android:layout_columnWeight="1" android:layout_margin="2dp"
-                        android:text="9" android:textSize="18sp" android:textStyle="bold"
-                        android:background="@drawable/bg_preset" android:textColor="#DDDDDD"/>
-                </GridLayout>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:layout_marginBottom="3dp">
+                    <Button android:id="@+id/btnP1"
+                        android:layout_width="0dp" android:layout_height="60dp" android:layout_weight="1"
+                        android:layout_marginEnd="3dp" android:text="1"
+                        android:textSize="24sp" android:textStyle="bold"
+                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"/>
+                    <Button android:id="@+id/btnP2"
+                        android:layout_width="0dp" android:layout_height="60dp" android:layout_weight="1"
+                        android:text="2" android:textSize="24sp" android:textStyle="bold"
+                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"/>
+                </LinearLayout>
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:layout_marginBottom="3dp">
+                    <Button android:id="@+id/btnP3"
+                        android:layout_width="0dp" android:layout_height="60dp" android:layout_weight="1"
+                        android:layout_marginEnd="3dp" android:text="3"
+                        android:textSize="24sp" android:textStyle="bold"
+                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"/>
+                    <Button android:id="@+id/btnP4"
+                        android:layout_width="0dp" android:layout_height="60dp" android:layout_weight="1"
+                        android:text="4" android:textSize="24sp" android:textStyle="bold"
+                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"/>
+                </LinearLayout>
+
+                <Button android:id="@+id/btnP5"
+                    android:layout_width="match_parent" android:layout_height="60dp"
+                    android:layout_marginBottom="3dp"
+                    android:text="5  HOME" android:textSize="18sp" android:textStyle="bold"
+                    android:textColor="#2979FF" android:background="@drawable/bg_preset"/>
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:layout_marginBottom="3dp">
+                    <Button android:id="@+id/btnP6"
+                        android:layout_width="0dp" android:layout_height="60dp" android:layout_weight="1"
+                        android:layout_marginEnd="3dp" android:text="6"
+                        android:textSize="24sp" android:textStyle="bold"
+                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"/>
+                    <Button android:id="@+id/btnP7"
+                        android:layout_width="0dp" android:layout_height="60dp" android:layout_weight="1"
+                        android:text="7" android:textSize="24sp" android:textStyle="bold"
+                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"/>
+                </LinearLayout>
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:layout_marginBottom="4dp">
+                    <Button android:id="@+id/btnP8"
+                        android:layout_width="0dp" android:layout_height="60dp" android:layout_weight="1"
+                        android:layout_marginEnd="3dp" android:text="8"
+                        android:textSize="24sp" android:textStyle="bold"
+                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"/>
+                    <Button android:id="@+id/btnP9"
+                        android:layout_width="0dp" android:layout_height="60dp" android:layout_weight="1"
+                        android:text="9" android:textSize="24sp" android:textStyle="bold"
+                        android:textColor="#DDDDDD" android:background="@drawable/bg_preset"/>
+                </LinearLayout>
 
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:text="길게 눌러 현재위치 저장"
-                    android:textColor="#445566" android:textSize="8sp"
-                    android:gravity="center" android:layout_marginTop="4dp"/>
+                    android:textColor="#445566" android:textSize="9sp" android:gravity="center"/>
 
             </LinearLayout>
         </ScrollView>
 
+        <!-- 관리 탭 내용 -->
         <LinearLayout android:id="@+id/panelMgmt"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:padding="8dp"
-            android:visibility="gone">
+            android:layout_width="match_parent" android:layout_height="0dp"
+            android:layout_weight="1" android:orientation="vertical"
+            android:padding="8dp" android:visibility="gone">
 
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="장치" android:textColor="#445566"
-                android:textSize="9sp" android:textAllCaps="true"
-                android:layout_marginBottom="4dp"/>
             <Button android:id="@+id/btnAddCamera"
-                android:layout_width="match_parent" android:layout_height="44dp"
-                android:layout_marginBottom="4dp"
-                android:text="+ 카메라 추가" android:textSize="12sp" android:textColor="#CCCCCC"
-                android:background="@drawable/bg_btn"/>
+                android:layout_width="match_parent" android:layout_height="46dp"
+                android:layout_marginBottom="4dp" android:text="+ 카메라 추가"
+                android:textSize="12sp" android:textColor="#CCCCCC" android:background="@drawable/bg_btn"/>
             <Button android:id="@+id/btnAddNvr"
-                android:layout_width="match_parent" android:layout_height="44dp"
-                android:layout_marginBottom="4dp"
-                android:text="+ NVR 추가" android:textSize="12sp" android:textColor="#CCCCCC"
-                android:background="@drawable/bg_btn"/>
+                android:layout_width="match_parent" android:layout_height="46dp"
+                android:layout_marginBottom="4dp" android:text="+ NVR 추가"
+                android:textSize="12sp" android:textColor="#CCCCCC" android:background="@drawable/bg_btn"/>
             <Button android:id="@+id/btnDevices"
-                android:layout_width="match_parent" android:layout_height="44dp"
-                android:layout_marginBottom="8dp"
-                android:text="장치 관리" android:textSize="12sp" android:textColor="#CCCCCC"
-                android:background="@drawable/bg_btn"/>
+                android:layout_width="match_parent" android:layout_height="46dp"
+                android:layout_marginBottom="10dp" android:text="장치 관리"
+                android:textSize="12sp" android:textColor="#CCCCCC" android:background="@drawable/bg_btn"/>
 
-            <View android:layout_width="match_parent" android:layout_height="0.5dp"
-                android:background="#253545" android:layout_marginBottom="8dp"/>
+            <View android:layout_width="match_parent" android:layout_height="1dp"
+                android:background="#253545" android:layout_marginBottom="10dp"/>
 
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="녹화" android:textColor="#445566"
-                android:textSize="9sp" android:textAllCaps="true"
-                android:layout_marginBottom="4dp"/>
             <Button android:id="@+id/btnPlayback"
-                android:layout_width="match_parent" android:layout_height="44dp"
-                android:layout_marginBottom="8dp"
-                android:text="녹화 재생" android:textSize="12sp" android:textColor="#CCCCCC"
-                android:background="@drawable/bg_btn"/>
+                android:layout_width="match_parent" android:layout_height="46dp"
+                android:layout_marginBottom="10dp" android:text="녹화 재생"
+                android:textSize="12sp" android:textColor="#CCCCCC" android:background="@drawable/bg_btn"/>
 
-            <View android:layout_width="match_parent" android:layout_height="0.5dp"
-                android:background="#253545" android:layout_marginBottom="8dp"/>
+            <View android:layout_width="match_parent" android:layout_height="1dp"
+                android:background="#253545" android:layout_marginBottom="10dp"/>
 
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="화면 테마" android:textColor="#445566"
-                android:textSize="9sp" android:textAllCaps="true"
-                android:layout_marginBottom="4dp"/>
-            <LinearLayout
-                android:layout_width="match_parent" android:layout_height="44dp"
+            <LinearLayout android:layout_width="match_parent" android:layout_height="46dp"
                 android:orientation="horizontal" android:gravity="center_vertical"
                 android:paddingStart="10dp" android:paddingEnd="8dp"
                 android:background="@drawable/bg_btn">
                 <TextView android:id="@+id/tvThemeLbl"
                     android:layout_width="0dp" android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="밝은 화면" android:textSize="11sp" android:textColor="#BBBBBB"/>
+                    android:layout_weight="1" android:text="밝은 화면"
+                    android:textSize="11sp" android:textColor="#BBBBBB"/>
                 <androidx.appcompat.widget.SwitchCompat android:id="@+id/swTheme"
-                    android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:checked="false"/>
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"/>
             </LinearLayout>
-
         </LinearLayout>
 
     </LinearLayout>
-
 </LinearLayout>
