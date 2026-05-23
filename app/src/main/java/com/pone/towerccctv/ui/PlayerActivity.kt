@@ -30,6 +30,7 @@ import com.pone.towerccctv.controller.PtzController
 import com.pone.towerccctv.databinding.ActivityPlayerBinding
 import com.pone.towerccctv.model.Channel
 import com.pone.towerccctv.model.DeviceType
+import com.pone.towerccctv.ocr.OcrEngine
 import com.pone.towerccctv.ocr.OcrSettings
 import com.pone.towerccctv.ocr.RoiOverlayView
 import org.videolan.libvlc.LibVLC
@@ -52,6 +53,9 @@ class PlayerActivity : AppCompatActivity() {
     private var isPlaying = false
 
     private lateinit var presetBtns: List<Pair<Button, Int>>
+
+    // OCR 엔진 (단독모드에서 직접 실행)
+    private var ocrEngine: OcrEngine? = null
 
     // OSD 갱신 (0.3초)
     private val osdHandler = Handler(Looper.getMainLooper())
@@ -147,7 +151,20 @@ class PlayerActivity : AppCompatActivity() {
             }
         }
 
-        if (ocrOn) osdHandler.post(osdRunnable)
+        // 단독모드에서 OCR 직접 실행 (4번 채널 HTTP 스냅샷)
+        if (ocrOn) {
+            val ch4Base = "http://192.168.0.104"
+            val ch4User = "admin"
+            val ch4Pass = "1q2w3e4r@"
+            val snapUrl = "$ch4Base/ISAPI/Streaming/channels/101/picture"
+            ocrEngine = OcrEngine(this).also { engine ->
+                engine.onResult = { result ->
+                    // SharedPreferences에 저장됨 (OcrEngine 내부)
+                }
+                engine.startHttpLoop(snapUrl, ch4User, ch4Pass)
+            }
+            osdHandler.post(osdRunnable)
+        }
     }
 
     // ── OSD 갱신 (SharedPreferences에서 읽기) ──
@@ -451,6 +468,7 @@ class PlayerActivity : AppCompatActivity() {
         super.onStop()
         cancelReconnect()
         osdHandler.removeCallbacks(osdRunnable)
+        ocrEngine?.release(); ocrEngine = null
         player?.stop()
     }
 
@@ -458,6 +476,7 @@ class PlayerActivity : AppCompatActivity() {
         super.onDestroy()
         cancelReconnect()
         osdHandler.removeCallbacks(osdRunnable)
+        ocrEngine?.release(); ocrEngine = null
         player?.detachViews(); player?.release(); player = null
         libVLC?.release(); libVLC = null
         b.imgSnapshot.setImageBitmap(null)

@@ -340,7 +340,8 @@ class MainActivity : AppCompatActivity() {
                     saveBitmapToFile(it, index).also { _ -> it.recycle() }
                 }
             }
-            cancelAllReconnects(); stopOcr(); stopAllStreams()
+            cancelAllReconnects(); stopAllStreams()
+            // OCR은 단독모드에서도 계속 실행 유지
             startActivity(Intent(this@MainActivity, PlayerActivity::class.java).apply {
                 putExtra("rtspUrl",    ch.rtspUrl)
                 putExtra("httpBase",   ch.httpBase)
