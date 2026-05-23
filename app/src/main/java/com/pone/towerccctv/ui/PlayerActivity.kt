@@ -55,6 +55,9 @@ class PlayerActivity : AppCompatActivity() {
 
     // OSD Handler (콜백 방식으로 대체, 최초 1회만 초기화)
     private val osdHandler = Handler(Looper.getMainLooper())
+    private val osdRunnable = object : Runnable {
+    override fun run() { refreshOsd(); osdHandler.postDelayed(this, 300L) }
+}
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
