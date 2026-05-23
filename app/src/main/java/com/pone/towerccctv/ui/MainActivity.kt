@@ -102,7 +102,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         cancelAllReconnects()
-        stopOcr()
+        // OCR은 단독모드에서도 계속 실행 (SharedPreferences 업데이트 유지)
         stopAllStreams()
     }
 

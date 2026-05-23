@@ -194,20 +194,22 @@ class OcrEngine(private val context: Context) {
             .maxOrNull()
     }
 
-    // 중량 추출 (ton 단위: 소수점 유지, 0.0이면 null → 이전값 유지)
+    // 중량 추출 (ton 단위: 소수점 우선, 0~100t 범위)
     fun extractWeightNumber(text: String): Float? {
-        val clean = text.replace(",", "").replace(" ", "")
-        // 소수점 포함 숫자 우선 (0.50, 1.25 등)
-        val numbers = Regex("""(\d+\.\d+)""").findAll(clean)
+        // "1.25", "0.50" 같은 소수점 패턴 우선
+        val decimalPattern = Regex("""(\d{1,3}\.\d{1,2})""")
+        val decimals = decimalPattern.findAll(text)
             .mapNotNull { it.value.toFloatOrNull() }
-            .filter { it in 0.0f..200.0f }
+            .filter { it in 0.0f..100.0f }
             .toList()
-        val result = if (numbers.isNotEmpty()) numbers.maxOrNull()
-        else Regex("""(\d+)""").findAll(clean)
+        if (decimals.isNotEmpty()) return decimals.minOrNull()  // 가장 작은 값 (ton 특성상)
+
+        // 소수점 없으면 정수
+        val intPattern = Regex("""(\d{1,3})""")
+        return intPattern.findAll(text)
             .mapNotNull { it.value.toFloatOrNull() }
-            .filter { it in 0.0f..200.0f }
-            .maxOrNull()
-        return result  // 0.0도 그대로 표시
+            .filter { it in 0.0f..100.0f }
+            .minOrNull()
     }
 
     private fun extractNumber(text: String): Float? {
