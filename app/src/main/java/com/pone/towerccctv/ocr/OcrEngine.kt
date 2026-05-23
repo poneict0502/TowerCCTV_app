@@ -10,33 +10,24 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlin.math.roundToInt
 
-/**
- * OCR 엔진 (영상 프레임 기반)
- * - MainActivity가 0.5초마다 TextureView 프레임을 캡처해서 processFrame() 호출
- * - ROI 영역 크롭 후 ML Kit OCR
- * - 결과를 SharedPreferences에 저장 + 콜백
- */
 class OcrEngine(private val context: Context) {
 
     data class OcrResult(
         val windSpeed: Float?,
         val weight: Float?,
         val windAlert: Boolean,
-        val weightAlert: Boolean
+        val weightAlert: Boolean,
+        val rawWind: String = "",    // 디버그: ML Kit 원본 텍스트
+        val rawWeight: String = ""   // 디버그: ML Kit 원본 텍스트
     )
 
     var onResult: ((OcrResult) -> Unit)? = null
-
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var processing = false  // 중복 처리 방지
+    private var processing = false
 
-    /**
-     * 영상 프레임에서 OCR 실행
-     * MainActivity에서 0.5초마다 호출
-     */
     fun processFrame(bmp: Bitmap) {
-        if (processing) return  // 이전 처리 중이면 스킵
+        if (processing) return
         processing = true
 
         val windRoi    = OcrSettings.getWindRoi(context)
@@ -44,26 +35,34 @@ class OcrEngine(private val context: Context) {
         val windLimit  = OcrSettings.getWindLimit(context)
         val weightLimit = OcrSettings.getWeightLimit(context)
 
-        // 비트맵 복사 (원본 재활용 방지)
-        val frame = bmp.copy(Bitmap.Config.ARGB_8888, false)
+        Log.d("OCR", "프레임 처리 시작 ${bmp.width}x${bmp.height}")
+        Log.d("OCR", "풍속ROI x=%.2f y=%.2f w=%.2f h=%.2f".format(
+            windRoi.x, windRoi.y, windRoi.w, windRoi.h))
+        Log.d("OCR", "중량ROI x=%.2f y=%.2f w=%.2f h=%.2f".format(
+            weightRoi.x, weightRoi.y, weightRoi.w, weightRoi.h))
 
+        val frame = bmp.copy(Bitmap.Config.ARGB_8888, false)
         val windBmp   = cropRoi(frame, windRoi)
         val weightBmp = cropRoi(frame, weightRoi)
         frame.recycle()
 
         var windVal: Float?   = null
         var weightVal: Float? = null
+        var rawWind   = ""
+        var rawWeight = ""
         var pending = 2
 
         fun check() {
             if (pending > 0) return
             processing = false
             val wv = windVal; val wt = weightVal
+            Log.d("OCR", "결과 → 풍속=$wv (raw: $rawWind) | 중량=$wt (raw: $rawWeight)")
+
             val result = OcrResult(
-                windSpeed   = wv,
-                weight      = wt,
+                windSpeed   = wv, weight = wt,
                 windAlert   = wv != null && wv >= windLimit,
-                weightAlert = wt != null && wt >= weightLimit
+                weightAlert = wt != null && wt >= weightLimit,
+                rawWind = rawWind, rawWeight = rawWeight
             )
             OcrSettings.saveLatestValues(context, wv, wt,
                 result.windAlert, result.weightAlert)
@@ -71,12 +70,28 @@ class OcrEngine(private val context: Context) {
         }
 
         recognizer.process(InputImage.fromBitmap(windBmp, 0))
-            .addOnSuccessListener { windVal = extractNumber(it.text); pending--; check() }
-            .addOnFailureListener { pending--; check() }
+            .addOnSuccessListener { txt ->
+                rawWind = txt.text.replace("\n", " ")
+                windVal = extractNumber(txt.text)
+                Log.d("OCR", "풍속 raw: '$rawWind' → $windVal")
+                pending--; check()
+            }
+            .addOnFailureListener { e ->
+                Log.e("OCR", "풍속 인식 실패: ${e.message}")
+                pending--; check()
+            }
 
         recognizer.process(InputImage.fromBitmap(weightBmp, 0))
-            .addOnSuccessListener { weightVal = extractNumber(it.text); pending--; check() }
-            .addOnFailureListener { pending--; check() }
+            .addOnSuccessListener { txt ->
+                rawWeight = txt.text.replace("\n", " ")
+                weightVal = extractNumber(txt.text)
+                Log.d("OCR", "중량 raw: '$rawWeight' → $weightVal")
+                pending--; check()
+            }
+            .addOnFailureListener { e ->
+                Log.e("OCR", "중량 인식 실패: ${e.message}")
+                pending--; check()
+            }
     }
 
     private fun cropRoi(bmp: Bitmap, roi: OcrSettings.Roi): Bitmap {
@@ -91,10 +106,9 @@ class OcrEngine(private val context: Context) {
         val clean = text.replace(",", "").replace(" ", "")
         return Regex("""(\d+\.?\d*)""").findAll(clean)
             .mapNotNull { it.value.toFloatOrNull() }
+            .filter { it > 0 }
             .maxOrNull()
     }
 
-    fun release() {
-        recognizer.close()
-    }
+    fun release() { recognizer.close() }
 }

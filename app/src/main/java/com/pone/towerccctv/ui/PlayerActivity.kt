@@ -163,7 +163,7 @@ class PlayerActivity : AppCompatActivity() {
         val root = window.decorView.findViewById<ViewGroup>(android.R.id.content)
 
         val overlay = FrameLayout(this).apply {
-            setBackgroundColor(Color.parseColor("#F0000000"))
+            setBackgroundColor(Color.TRANSPARENT)
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -174,6 +174,7 @@ class PlayerActivity : AppCompatActivity() {
         val bgImage = ImageView(this).apply {
             frame?.let { setImageBitmap(it) }
             scaleType = ImageView.ScaleType.FIT_CENTER
+            alpha = 1.0f  // 원본 밝기 유지
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT

@@ -168,7 +168,8 @@ class MainActivity : AppCompatActivity() {
         ocrEngine = OcrEngine(this).also { engine ->
             engine.onResult = { result ->
                 updateOsd(result.windSpeed, result.weight,
-                          result.windAlert, result.weightAlert)
+                          result.windAlert, result.weightAlert,
+                          result.rawWind, result.rawWeight)
             }
         }
         b.osdOverlay.visibility = View.VISIBLE
@@ -218,9 +219,10 @@ class MainActivity : AppCompatActivity() {
 
     // ── CH1 OSD 업데이트 ──
     private fun updateOsd(wind: Float?, weight: Float?,
-                          windAlert: Boolean, weightAlert: Boolean) {
-        val windTxt   = if (wind   != null) "🌬  %.1f m/s".format(wind)   else "🌬  --"
-        val weightTxt = if (weight != null) "⚖  %.0f kg".format(weight) else "⚖  --"
+                          windAlert: Boolean, weightAlert: Boolean,
+                          rawWind: String = "", rawWeight: String = "") {
+        val windTxt   = if (wind   != null) "🌬  %.1f m/s".format(wind)   else "🌬  [${rawWind.take(12)}]"
+        val weightTxt = if (weight != null) "⚖  %.0f kg".format(weight)  else "⚖  [${rawWeight.take(12)}]"
         b.osdWind.text   = windTxt
         b.osdWeight.text = weightTxt
         b.osdWind.setTextColor(if (windAlert) Color.parseColor("#FF4444") else Color.WHITE)
