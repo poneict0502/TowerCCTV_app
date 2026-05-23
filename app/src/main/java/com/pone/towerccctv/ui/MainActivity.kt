@@ -107,24 +107,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showNvrPlaybackSelector() {
-        val devices = DeviceStore.load(this)
-        val nvrList = devices.filter {
-            it.type == com.pone.towerccctv.model.DeviceType.NVR && it.enabled
-        }
-        if (nvrList.isEmpty()) {
-            Toast.makeText(this, "등록된 NVR이 없습니다", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val nvr = nvrList.first()
-        val chNames = (1..nvr.channelCount).map { "CH$it" }.toTypedArray()
+        // NVR 고정 설정 (192.168.0.100)
+        val nvrIp  = "192.168.0.100"
+        val nvrUser = "admin"
+        val nvrPass = "1q2w3e4r@"
+        val chNames = arrayOf("CH 1", "CH 2", "CH 3", "CH 4")
         AlertDialog.Builder(this)
             .setTitle("📹 NVR 녹화 재생 - 채널 선택")
             .setItems(chNames) { _, idx ->
                 val ch = idx + 1
                 startActivity(Intent(this, PlaybackActivity::class.java).apply {
-                    putExtra("httpBase", "http://${nvr.ip}:${nvr.httpPort}")
-                    putExtra("username", nvr.username)
-                    putExtra("password", nvr.password)
+                    putExtra("httpBase", "http://$nvrIp")
+                    putExtra("username", nvrUser)
+                    putExtra("password", nvrPass)
                     putExtra("label", "NVR-CH$ch")
                     putExtra("nvrChannel", ch)
                 })
