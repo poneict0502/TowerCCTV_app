@@ -132,18 +132,9 @@ class PlayerActivity : AppCompatActivity() {
             }
         }
 
-        // MainActivity OCR 결과를 직접 받아 실시간 OSD 업데이트
+        // OSD 갱신 시작 (0.3초 간격)
         if (ocrOn) {
-            (application as? android.app.Application)
-            // MainActivity 인스턴스에서 콜백 등록
-            val mainActivity = try {
-                // 현재 액티비티 스택에서 MainActivity 찾기
-                (this as? android.app.Activity)
-                null
-            } catch (e: Exception) { null }
-
-            // SharedPreferences 초기값 표시
-            osdHandler.post { refreshOsd() }
+            osdHandler.post(osdRunnable)
         }
     }
 
@@ -169,10 +160,45 @@ class PlayerActivity : AppCompatActivity() {
 
     // ── ROI 설정 (전체화면 오버레이, Dialog 없음) ──
     private fun showRoiSetup() {
-        // 현재 프레임 캡처
+        // HTTP 스냅샷을 배경으로 사용 (영상과 좌표 일치)
+        val httpBase = intent.getStringExtra("httpBase") ?: ""
+        val username = intent.getStringExtra("username") ?: "admin"
+        val password = intent.getStringExtra("password") ?: ""
+        val snapshotUrl = "$httpBase/ISAPI/Streaming/channels/101/picture"
+
+        // 비동기로 스냅샷 가져오기
+        android.os.AsyncTask.execute {
+            val frame = try {
+                val authCache = java.util.concurrent.ConcurrentHashMap<com.burgstaller.okhttp.digest.CachingAuthenticator, com.burgstaller.okhttp.digest.CachingAuthenticator>()
+                val credentials = com.burgstaller.okhttp.digest.Credentials(username, password)
+                val authenticator = com.burgstaller.okhttp.DispatchingAuthenticator.Builder()
+                    .with("digest", com.burgstaller.okhttp.digest.DigestAuthenticator(credentials))
+                    .with("basic", com.burgstaller.okhttp.basic.BasicAuthenticator(credentials))
+                    .build()
+                val client = okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+                    .build()
+                val req = okhttp3.Request.Builder().url(snapshotUrl)
+                    .header("Authorization", okhttp3.Credentials.basic(username, password))
+                    .build()
+                client.newCall(req).execute().use { resp ->
+                    resp.body?.bytes()?.let {
+                        android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size)
+                    }
+                }
+            } catch (e: Exception) { captureCurrentFrame() }
+            runOnUiThread { showRoiOverlay(frame) }
+        }
+    }
+
+    private fun showRoiSetupOld() {
         val frame = captureCurrentFrame()
 
-        // 루트 뷰에 전체화면 오버레이 추가
+        showRoiOverlay(null)
+    }
+
+    private fun showRoiOverlay(frame: android.graphics.Bitmap?) {
         val root = window.decorView.findViewById<ViewGroup>(android.R.id.content)
 
         val overlay = FrameLayout(this).apply {
@@ -454,12 +480,14 @@ class PlayerActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         cancelReconnect()
+        osdHandler.removeCallbacks(osdRunnable)
         player?.stop()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         cancelReconnect()
+        osdHandler.removeCallbacks(osdRunnable)
         player?.detachViews(); player?.release(); player = null
         libVLC?.release(); libVLC = null
         b.imgSnapshot.setImageBitmap(null)
