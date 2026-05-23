@@ -127,6 +127,22 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton("취소", null).show()
     }
 
+    private fun playAlertSound() {
+        try {
+            val toneGen = android.media.ToneGenerator(
+                android.media.AudioManager.STREAM_ALARM, 100)
+            // 삐삐삐 3번
+            toneGen.startTone(android.media.ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 300)
+            reconnectHandler.postDelayed({
+                toneGen.startTone(android.media.ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 300)
+            }, 400L)
+            reconnectHandler.postDelayed({
+                toneGen.startTone(android.media.ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 300)
+                reconnectHandler.postDelayed({ toneGen.release() }, 500L)
+            }, 800L)
+        } catch (e: Exception) { /* 무시 */ }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         cancelAllReconnects()
@@ -242,14 +258,17 @@ class MainActivity : AppCompatActivity() {
                         append("🚨 풍속 초과: %.1f m/s (한계: %.1f)\n"
                             .format(wind, OcrSettings.getWindLimit(this@MainActivity)))
                     if (weightAlert && weight != null)
-                        append("🚨 중량 초과: %.0f kg (한계: %.0f)"
+                        append("🚨 중량 초과: %.2f t (한계: %.1f)"
                             .format(weight, OcrSettings.getWeightLimit(this@MainActivity)))
                 }
+                // OSD 빨간 배경
                 b.osdOverlay.setBackgroundColor(Color.parseColor("#DD880000"))
                 reconnectHandler.postDelayed({
                     b.osdOverlay.setBackgroundColor(Color.parseColor("#DD000000"))
                 }, 3000L)
                 Toast.makeText(this, msg.trim(), Toast.LENGTH_LONG).show()
+                // 음향 경보
+                playAlertSound()
             }
         }
     }
