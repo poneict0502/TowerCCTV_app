@@ -5,14 +5,21 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
-import android.util.Base64
 import android.util.Log
+import com.burgstaller.okhttp.AuthenticationCacheInterceptor
+import com.burgstaller.okhttp.CachingAuthenticatorDecorator
+import com.burgstaller.okhttp.DispatchingAuthenticator
+import com.burgstaller.okhttp.basic.BasicAuthenticator
+import com.burgstaller.okhttp.digest.CachingAuthenticator
+import com.burgstaller.okhttp.digest.Credentials
+import com.burgstaller.okhttp.digest.DigestAuthenticator
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
@@ -34,57 +41,60 @@ class OcrEngine(private val context: Context) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var job: Job? = null
     private var processing = false
+    private var httpClient: OkHttpClient? = null
 
-    // HTTP 스냅샷 클라이언트
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(2, TimeUnit.SECONDS)
-        .readTimeout(2, TimeUnit.SECONDS)
-        .build()
-
-    /**
-     * HTTP 스냅샷 루프 시작
-     * snapshotUrl: http://ip/ISAPI/Streaming/channels/101/picture
-     */
     fun startHttpLoop(snapshotUrl: String, username: String, password: String) {
         stopLoop()
+
+        // ★ Digest + Basic 인증 (Hikvision 필수)
+        val authCache = ConcurrentHashMap<String, CachingAuthenticator>()
+        val credentials = Credentials(username, password)
+        val authenticator = DispatchingAuthenticator.Builder()
+            .with("digest", DigestAuthenticator(credentials))
+            .with("basic", BasicAuthenticator(credentials))
+            .build()
+
+        httpClient = OkHttpClient.Builder()
+            .connectTimeout(3, TimeUnit.SECONDS)
+            .readTimeout(3, TimeUnit.SECONDS)
+            .authenticator(CachingAuthenticatorDecorator(authenticator, authCache))
+            .addInterceptor(AuthenticationCacheInterceptor(authCache))
+            .build()
+
         job = scope.launch {
+            Log.d("OCR", "루프 시작: $snapshotUrl")
             while (isActive) {
                 if (!processing) {
                     try {
-                        val bmp = fetchSnapshot(snapshotUrl, username, password)
+                        val bmp = fetchSnapshot(snapshotUrl)
                         if (bmp != null) {
-                            Log.d("OCR", "스냅샷 수신: ${bmp.width}x${bmp.height}")
+                            Log.d("OCR", "스냅샷 수신 성공: ${bmp.width}x${bmp.height}")
                             processOcr(bmp)
                         } else {
-                            Log.w("OCR", "스냅샷 수신 실패")
+                            Log.w("OCR", "스냅샷 null")
                         }
                     } catch (e: Exception) {
-                        Log.e("OCR", "스냅샷 오류: ${e.message}")
+                        Log.e("OCR", "오류: ${e.message}")
                     }
                 }
                 delay(500L)
             }
         }
-        Log.d("OCR", "HTTP 루프 시작: $snapshotUrl")
     }
 
     fun stopLoop() {
         job?.cancel(); job = null
+        httpClient = null
     }
 
-    private fun fetchSnapshot(url: String, user: String, pass: String): Bitmap? {
-        val credential = okhttp3.Credentials.basic(user, pass)
-        val req = Request.Builder()
-            .url(url)
-            .header("Authorization", credential)
-            .build()
-        return httpClient.newCall(req).execute().use { resp ->
+    private fun fetchSnapshot(url: String): Bitmap? {
+        val client = httpClient ?: return null
+        val req = Request.Builder().url(url).get().build()
+        return client.newCall(req).execute().use { resp ->
+            Log.d("OCR", "HTTP 응답: ${resp.code}")
             if (resp.isSuccessful) {
                 resp.body?.bytes()?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
-            } else {
-                Log.w("OCR", "HTTP ${resp.code}: $url")
-                null
-            }
+            } else null
         }
     }
 
@@ -100,17 +110,16 @@ class OcrEngine(private val context: Context) {
         val weightBmp = cropRoi(frame, weightRoi)
         frame.recycle()
 
-        var windVal: Float?   = null
+        var windVal: Float? = null
         var weightVal: Float? = null
-        var rawWind   = ""
-        var rawWeight = ""
+        var rawWind = ""; var rawWeight = ""
         var pending = 2
 
         fun check() {
             if (pending > 0) return
             processing = false
             val wv = windVal; val wt = weightVal
-            Log.d("OCR", "결과 → 풍속=$wv[$rawWind] | 중량=$wt[$rawWeight]")
+            Log.d("OCR", "결과 → 풍속=$wv[$rawWind] 중량=$wt[$rawWeight]")
             val result = OcrResult(
                 windSpeed = wv, weight = wt,
                 windAlert   = wv != null && wv >= windLimit,
