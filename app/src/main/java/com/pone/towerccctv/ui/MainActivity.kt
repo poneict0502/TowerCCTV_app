@@ -2,13 +2,11 @@ package com.pone.towerccctv.ui
 
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.TextureView
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -55,8 +53,6 @@ class MainActivity : AppCompatActivity() {
 
     // OCR - 영상 프레임 캡처 방식
     private var ocrEngine: OcrEngine? = null
-    private val ocrHandler = Handler(Looper.getMainLooper())
-    private var ocrJob: Runnable? = null
     private var ocrChannelIndex = -1  // OCR 대상 채널 인덱스
 
     // 경보 중복 방지
@@ -162,8 +158,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ── OCR: 0.5초마다 CH4 영상에서 프레임 캡처 ──
+    // ── OCR: HTTP 스냅샷 방식 (TextureView 검정 문제 해결) ──
     private fun startOcrLoop() {
+        val ch = channels.getOrNull(ocrChannelIndex) ?: return
+        val snapshotUrl = "${ch.httpBase}/ISAPI/Streaming/channels/101/picture"
+
+        b.osdOverlay.visibility = View.VISIBLE
+        b.tvOcrBadge.visibility = View.VISIBLE
+
         ocrEngine?.release()
         ocrEngine = OcrEngine(this).also { engine ->
             engine.onResult = { result ->
@@ -171,47 +173,11 @@ class MainActivity : AppCompatActivity() {
                           result.windAlert, result.weightAlert,
                           result.rawWind, result.rawWeight)
             }
+            engine.startHttpLoop(snapshotUrl, ch.username, ch.password)
         }
-        b.osdOverlay.visibility = View.VISIBLE
-        b.tvOcrBadge.visibility = View.VISIBLE
-
-        val runnable = object : Runnable {
-            override fun run() {
-                if (isDestroyed || isFinishing) return
-                captureAndOcr()
-                ocrHandler.postDelayed(this, 500L)
-            }
-        }
-        ocrJob = runnable
-        ocrHandler.post(runnable)
-    }
-
-    private fun captureAndOcr() {
-        val idx = ocrChannelIndex
-        if (idx < 0 || idx >= vlcList.size) return
-        val bmp = captureFrame(idx) ?: return
-        ocrEngine?.processFrame(bmp)
-    }
-
-    private fun captureFrame(idx: Int): Bitmap? {
-        return try {
-            val vlcView = vlcList[idx]
-            for (i in 0 until vlcView.childCount) {
-                val child = vlcView.getChildAt(i)
-                if (child is TextureView) {
-                    return child.bitmap
-                }
-            }
-            if (vlcView.width > 0 && vlcView.height > 0) {
-                Bitmap.createBitmap(vlcView.width, vlcView.height, Bitmap.Config.ARGB_8888)
-                    .also { vlcView.draw(Canvas(it)) }
-            } else null
-        } catch (e: Exception) { null }
     }
 
     private fun stopOcr() {
-        ocrJob?.let { ocrHandler.removeCallbacks(it) }
-        ocrJob = null
         ocrEngine?.release(); ocrEngine = null
         b.osdOverlay.visibility = View.GONE
         b.tvOcrBadge.visibility = View.GONE
