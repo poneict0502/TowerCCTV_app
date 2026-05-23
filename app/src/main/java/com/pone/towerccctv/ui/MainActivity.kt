@@ -262,7 +262,20 @@ class MainActivity : AppCompatActivity() {
     // ── PlayerActivity 전환 ──
     private fun openPlayer(index: Int) {
         val ch = channels.getOrNull(index) ?: return
-        val bmp = captureFrame(index)
+
+        // TextureView에서 스냅샷 캡처 시도
+        val bmp: Bitmap? = try {
+            val vlcView = vlcList[index]
+            var result: Bitmap? = null
+            for (i in 0 until vlcView.childCount) {
+                val child = vlcView.getChildAt(i)
+                if (child is android.view.TextureView) {
+                    result = child.bitmap; break
+                }
+            }
+            result
+        } catch (e: Exception) { null }
+
         lifecycleScope.launch {
             val snapPath = bmp?.let {
                 withContext(Dispatchers.IO) {
