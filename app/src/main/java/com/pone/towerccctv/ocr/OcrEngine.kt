@@ -3,6 +3,10 @@ package com.pone.towerccctv.ocr
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -153,7 +157,50 @@ class OcrEngine(private val context: Context) {
         val y = (bmp.height * roi.y).roundToInt().coerceIn(0, bmp.height - 1)
         val w = (bmp.width  * roi.w).roundToInt().coerceIn(1, bmp.width  - x)
         val h = (bmp.height * roi.h).roundToInt().coerceIn(1, bmp.height - y)
-        return Bitmap.createBitmap(bmp, x, y, w, h)
+        val cropped = Bitmap.createBitmap(bmp, x, y, w, h)
+
+        // ★ 2배 확대 (저해상도 OCR 인식률 향상)
+        val scaled = Bitmap.createScaledBitmap(cropped, w * 2, h * 2, true)
+        cropped.recycle()
+
+        // ★ 대비 강화 (LCD 숫자 선명하게)
+        return enhanceContrast(scaled)
+    }
+
+    // 대비 강화 + 그레이스케일
+    private fun enhanceContrast(bmp: Bitmap): Bitmap {
+        val result = Bitmap.createBitmap(bmp.width, bmp.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(result)
+        val paint = Paint()
+        // 대비 1.5배, 밝기 -30 (어두운 배경의 밝은 숫자 강조)
+        val cm = ColorMatrix(floatArrayOf(
+            1.5f, 0f, 0f, 0f, -30f,
+            0f, 1.5f, 0f, 0f, -30f,
+            0f, 0f, 1.5f, 0f, -30f,
+            0f, 0f, 0f, 1f,   0f
+        ))
+        paint.colorFilter = ColorMatrixColorFilter(cm)
+        canvas.drawBitmap(bmp, 0f, 0f, paint)
+        bmp.recycle()
+        return result
+    }
+
+    // 풍속 추출 (m/s 숫자)
+    fun extractWindNumber(text: String): Float? {
+        val clean = text.replace(",", "").replace(" ", "")
+        return Regex("""(\d+\.?\d*)""").findAll(clean)
+            .mapNotNull { it.value.toFloatOrNull() }
+            .filter { it in 0.1f..50.0f }  // 풍속 유효 범위
+            .maxOrNull()
+    }
+
+    // 중량 추출 (ton 단위: 0.1~100)
+    fun extractWeightNumber(text: String): Float? {
+        val clean = text.replace(",", "").replace(" ", "")
+        return Regex("""(\d+\.?\d*)""").findAll(clean)
+            .mapNotNull { it.value.toFloatOrNull() }
+            .filter { it in 0.1f..200.0f }  // ton 유효 범위
+            .maxOrNull()
     }
 
     private fun extractNumber(text: String): Float? {

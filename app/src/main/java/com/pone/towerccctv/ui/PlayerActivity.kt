@@ -144,14 +144,18 @@ class PlayerActivity : AppCompatActivity() {
         val weight = OcrSettings.getLatestWeight(this)
         val windAlert   = OcrSettings.isLatestWindAlert(this)
         val weightAlert = OcrSettings.isLatestWeightAlert(this)
-        val stale = System.currentTimeMillis() - OcrSettings.getLatestTime(this) > 5000L
+        val isTon = OcrSettings.isWeightTon(this)
 
-        b.osdWindPlayer.text   = if (!stale && wind   != null) "풍속: %.1f".format(wind)   else "풍속: --"
-        b.osdWeightPlayer.text = if (!stale && weight != null) "중량: %.0f".format(weight) else "중량: --"
+        // 값 있으면 표시, 없으면 -- (타임아웃 없음 - 마지막 값 유지)
+        b.osdWindPlayer.text = if (wind != null) "풍속: %.1f m/s".format(wind) else "풍속: --"
+        b.osdWeightPlayer.text = if (weight != null) {
+            if (isTon) "중량: %.1f t".format(weight) else "중량: %.0f kg".format(weight)
+        } else "중량: --"
+
         b.osdWindPlayer.setTextColor(
-            if (windAlert && !stale) Color.parseColor("#FF4444") else Color.WHITE)
+            if (windAlert) Color.parseColor("#FF4444") else Color.WHITE)
         b.osdWeightPlayer.setTextColor(
-            if (weightAlert && !stale) Color.parseColor("#FF4444") else Color.WHITE)
+            if (weightAlert) Color.parseColor("#FF4444") else Color.WHITE)
     }
 
     // ── ROI 설정 (전체화면 오버레이, Dialog 없음) ──

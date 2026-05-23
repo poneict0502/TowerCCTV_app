@@ -88,6 +88,29 @@ class OcrSettingsDialog(
             setTextColor(Color.parseColor("#556677")); textSize = 10f
         })
 
+        // 중량 단위 선택
+        val unitRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(0, 8, 0, 4)
+        }
+        unitRow.addView(TextView(context).apply {
+            text = "중량 단위:"; setTextColor(Color.parseColor("#AAAAAA")); textSize = 12f
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        val btnTon = android.widget.ToggleButton(context).apply {
+            textOn = "TON"; textOff = "TON"; textSize = 11f
+            isChecked = OcrSettings.isWeightTon(context)
+        }
+        val btnKg = android.widget.ToggleButton(context).apply {
+            textOn = "KG"; textOff = "KG"; textSize = 11f
+            isChecked = !OcrSettings.isWeightTon(context)
+        }
+        btnTon.setOnCheckedChangeListener { _, on -> if (on) btnKg.isChecked = false }
+        btnKg.setOnCheckedChangeListener  { _, on -> if (on) btnTon.isChecked = false }
+        unitRow.addView(btnTon); unitRow.addView(btnKg)
+        layout.addView(unitRow)
+
         // 구분선
         layout.addView(View(context).apply {
             setBackgroundColor(Color.parseColor("#253545"))
@@ -129,6 +152,7 @@ class OcrSettingsDialog(
                 weightInput.text.toString().toFloatOrNull()?.let {
                     OcrSettings.setWeightLimit(context, it)
                 }
+                OcrSettings.setWeightTon(context, btnTon.isChecked)
                 Toast.makeText(context, "설정 저장됨", Toast.LENGTH_SHORT).show()
                 onChanged?.invoke()
                 dialog.dismiss()

@@ -184,15 +184,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ── CH1 OSD 업데이트 ──
+    // 마지막 인식값 보관 (사라지지 않음)
+    private var lastWind: Float? = null
+    private var lastWeight: Float? = null
+    private var lastWindAlert = false
+    private var lastWeightAlert = false
+
     private fun updateOsd(wind: Float?, weight: Float?,
                           windAlert: Boolean, weightAlert: Boolean,
                           rawWind: String = "", rawWeight: String = "") {
-        val windTxt   = if (wind   != null) "🌬  %.1f m/s".format(wind)   else "🌬  [${rawWind.take(12)}]"
-        val weightTxt = if (weight != null) "⚖  %.0f kg".format(weight)  else "⚖  [${rawWeight.take(12)}]"
+        // 새 값이 들어오면 업데이트, 없으면 이전 값 유지
+        if (wind   != null) { lastWind   = wind;   lastWindAlert   = windAlert }
+        if (weight != null) { lastWeight = weight; lastWeightAlert = weightAlert }
+
+        val isTon = OcrSettings.isWeightTon(this)
+        val windTxt   = if (lastWind   != null) "🌬  %.1f m/s".format(lastWind)
+                        else "🌬  [${rawWind.take(10)}]"
+        val weightTxt = if (lastWeight != null) {
+            if (isTon) "⚖  %.1f t".format(lastWeight) else "⚖  %.0f kg".format(lastWeight)
+        } else "⚖  [${rawWeight.take(10)}]"
         b.osdWind.text   = windTxt
         b.osdWeight.text = weightTxt
-        b.osdWind.setTextColor(if (windAlert) Color.parseColor("#FF4444") else Color.WHITE)
-        b.osdWeight.setTextColor(if (weightAlert) Color.parseColor("#FF4444") else Color.WHITE)
+        b.osdWind.setTextColor(if (lastWindAlert) Color.parseColor("#FF4444") else Color.WHITE)
+        b.osdWeight.setTextColor(if (lastWeightAlert) Color.parseColor("#FF4444") else Color.WHITE)
 
         if (windAlert || weightAlert) {
             val now = System.currentTimeMillis()

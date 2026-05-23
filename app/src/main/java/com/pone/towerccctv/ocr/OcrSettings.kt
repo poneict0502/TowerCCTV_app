@@ -31,11 +31,20 @@ object OcrSettings {
 
     fun getWeightLimit(ctx: Context): Float =
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getFloat("weight_limit", 5000.0f)  // 기본 5000 kg
+            .getFloat("weight_limit", 3.0f)  // 기본 3.0 ton
 
     fun setWeightLimit(ctx: Context, v: Float) =
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit().putFloat("weight_limit", v).apply()
+
+    // 중량 단위 (ton/kg)
+    fun isWeightTon(ctx: Context) =
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean("weight_is_ton", true)  // 기본 ton
+
+    fun setWeightTon(ctx: Context, isTon: Boolean) =
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putBoolean("weight_is_ton", isTon).apply()
 
     // ROI 영역 (비율 0.0~1.0)
     data class Roi(val x: Float, val y: Float, val w: Float, val h: Float)
@@ -43,8 +52,8 @@ object OcrSettings {
     fun getWindRoi(ctx: Context): Roi {
         val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         return Roi(
-            p.getFloat("wind_roi_x", 0.0f), p.getFloat("wind_roi_y", 0.1f),
-            p.getFloat("wind_roi_w", 0.5f), p.getFloat("wind_roi_h", 0.35f)
+            p.getFloat("wind_roi_x", 0.0f), p.getFloat("wind_roi_y", 0.0f),
+            p.getFloat("wind_roi_w", 1.0f), p.getFloat("wind_roi_h", 0.5f)
         )
     }
 
@@ -57,8 +66,8 @@ object OcrSettings {
     fun getWeightRoi(ctx: Context): Roi {
         val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         return Roi(
-            p.getFloat("weight_roi_x", 0.5f), p.getFloat("weight_roi_y", 0.1f),
-            p.getFloat("weight_roi_w", 0.5f), p.getFloat("weight_roi_h", 0.35f)
+            p.getFloat("weight_roi_x", 0.0f), p.getFloat("weight_roi_y", 0.5f),
+            p.getFloat("weight_roi_w", 1.0f), p.getFloat("weight_roi_h", 0.5f)
         )
     }
 
