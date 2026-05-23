@@ -36,13 +36,14 @@ class PlaybackActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val httpBase = intent.getStringExtra("httpBase") ?: ""
-        val username = intent.getStringExtra("username") ?: "admin"
-        val password = intent.getStringExtra("password") ?: ""
-        val label    = intent.getStringExtra("label") ?: "녹화 재생"
+        val httpBase   = intent.getStringExtra("httpBase") ?: ""
+        val username   = intent.getStringExtra("username") ?: "admin"
+        val password   = intent.getStringExtra("password") ?: ""
+        val label      = intent.getStringExtra("label") ?: "녹화 재생"
+        val nvrChannel = intent.getIntExtra("nvrChannel", 1)
         title = "▶ $label"
 
-        ctrl = PlaybackController(Channel(0, label, "", httpBase, 1,
+        ctrl = PlaybackController(Channel(0, label, "", httpBase, nvrChannel,
             username, password, false, DeviceType.CAMERA))
 
         val args = arrayListOf("--no-audio", "--rtsp-tcp", "--network-caching=500")

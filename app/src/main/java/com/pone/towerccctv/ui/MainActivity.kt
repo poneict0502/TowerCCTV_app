@@ -76,15 +76,17 @@ class MainActivity : AppCompatActivity() {
         b.btnSettings.setOnClickListener { view ->
             val popup = PopupMenu(this, view)
             popup.menu.add(0, 1, 0, "📋  장치 관리")
-            popup.menu.add(0, 2, 1, "⚡  기본 카메라 4대 자동 등록")
+            popup.menu.add(0, 2, 1, "⚡  기본 장치 자동 등록")
             popup.menu.add(0, 3, 2, "📡  OCR / 계측 설정")
-            popup.menu.add(0, 4, 3, "──────────────").isEnabled = false
-            popup.menu.add(0, 5, 4, "추후 추가 예정").isEnabled = false
+            popup.menu.add(0, 4, 3, "📹  NVR 녹화 재생")
+            popup.menu.add(0, 5, 4, "──────────────").isEnabled = false
+            popup.menu.add(0, 6, 5, "추후 추가 예정").isEnabled = false
             popup.setOnMenuItemClickListener { item ->
                 when (item.itemId) {
                     1 -> startActivity(Intent(this, DeviceListActivity::class.java))
                     2 -> showAutoRegisterDialog()
                     3 -> OcrSettingsDialog(this) { restartStreams() }.show()
+                    4 -> showNvrPlaybackSelector()
                 }
                 true
             }
@@ -102,6 +104,32 @@ class MainActivity : AppCompatActivity() {
         cancelAllReconnects()
         stopOcr()
         stopAllStreams()
+    }
+
+    private fun showNvrPlaybackSelector() {
+        val devices = DeviceStore.load(this)
+        val nvrList = devices.filter {
+            it.type == com.pone.towerccctv.model.DeviceType.NVR && it.enabled
+        }
+        if (nvrList.isEmpty()) {
+            Toast.makeText(this, "등록된 NVR이 없습니다", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val nvr = nvrList.first()
+        val chNames = (1..nvr.channelCount).map { "CH$it" }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("📹 NVR 녹화 재생 - 채널 선택")
+            .setItems(chNames) { _, idx ->
+                val ch = idx + 1
+                startActivity(Intent(this, PlaybackActivity::class.java).apply {
+                    putExtra("httpBase", "http://${nvr.ip}:${nvr.httpPort}")
+                    putExtra("username", nvr.username)
+                    putExtra("password", nvr.password)
+                    putExtra("label", "NVR-CH$ch")
+                    putExtra("nvrChannel", ch)
+                })
+            }
+            .setNegativeButton("취소", null).show()
     }
 
     override fun onDestroy() {
@@ -173,8 +201,7 @@ class MainActivity : AppCompatActivity() {
                 updateOsd(result.windSpeed, result.weight,
                           result.windAlert, result.weightAlert,
                           result.rawWind, result.rawWeight)
-                // 전역 콜백 (PlayerActivity에서 사용)
-                ocrResultCallback?.invoke(result)
+
             }
             engine.startHttpLoop(snapshotUrl, ch.username, ch.password)
         }
