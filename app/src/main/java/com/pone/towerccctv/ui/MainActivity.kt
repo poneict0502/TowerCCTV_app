@@ -169,9 +169,12 @@ class MainActivity : AppCompatActivity() {
         ocrEngine?.release()
         ocrEngine = OcrEngine(this).also { engine ->
             engine.onResult = { result ->
+                // 그리드 OSD 업데이트
                 updateOsd(result.windSpeed, result.weight,
                           result.windAlert, result.weightAlert,
                           result.rawWind, result.rawWeight)
+                // 전역 콜백 (PlayerActivity에서 사용)
+                ocrResultCallback?.invoke(result)
             }
             engine.startHttpLoop(snapshotUrl, ch.username, ch.password)
         }
@@ -201,7 +204,7 @@ class MainActivity : AppCompatActivity() {
         val windTxt   = if (lastWind   != null) "🌬  %.1f m/s".format(lastWind)
                         else "🌬  [${rawWind.take(10)}]"
         val weightTxt = if (lastWeight != null) {
-            if (isTon) "⚖  %.1f t".format(lastWeight) else "⚖  %.0f kg".format(lastWeight)
+            if (isTon) "⚖  %.2f t".format(lastWeight) else "⚖  %.1f kg".format(lastWeight)
         } else "⚖  [${rawWeight.take(10)}]"
         b.osdWind.text   = windTxt
         b.osdWeight.text = weightTxt

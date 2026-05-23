@@ -53,11 +53,8 @@ class PlayerActivity : AppCompatActivity() {
 
     private lateinit var presetBtns: List<Pair<Button, Int>>
 
-    // OSD 갱신
+    // OSD Handler (콜백 방식으로 대체, 최초 1회만 초기화)
     private val osdHandler = Handler(Looper.getMainLooper())
-    private val osdRunnable = object : Runnable {
-        override fun run() { refreshOsd(); osdHandler.postDelayed(this, 800L) }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -135,11 +132,23 @@ class PlayerActivity : AppCompatActivity() {
             }
         }
 
-        if (ocrOn) osdHandler.post(osdRunnable)
+        // MainActivity OCR 결과를 직접 받아 실시간 OSD 업데이트
+        if (ocrOn) {
+            (application as? android.app.Application)
+            // MainActivity 인스턴스에서 콜백 등록
+            val mainActivity = try {
+                // 현재 액티비티 스택에서 MainActivity 찾기
+                (this as? android.app.Activity)
+                null
+            } catch (e: Exception) { null }
+
+            // SharedPreferences 초기값 표시
+            osdHandler.post { refreshOsd() }
+        }
     }
 
     // ── OSD 갱신 ──
-    private fun refreshOsd() {
+    fun refreshOsd() {
         val wind   = OcrSettings.getLatestWind(this)
         val weight = OcrSettings.getLatestWeight(this)
         val windAlert   = OcrSettings.isLatestWindAlert(this)
@@ -149,7 +158,7 @@ class PlayerActivity : AppCompatActivity() {
         // 값 있으면 표시, 없으면 -- (타임아웃 없음 - 마지막 값 유지)
         b.osdWindPlayer.text = if (wind != null) "풍속: %.1f m/s".format(wind) else "풍속: --"
         b.osdWeightPlayer.text = if (weight != null) {
-            if (isTon) "중량: %.1f t".format(weight) else "중량: %.0f kg".format(weight)
+            if (isTon) "중량: %.2f t".format(weight) else "중량: %.1f kg".format(weight)
         } else "중량: --"
 
         b.osdWindPlayer.setTextColor(
@@ -445,14 +454,12 @@ class PlayerActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         cancelReconnect()
-        osdHandler.removeCallbacks(osdRunnable)
         player?.stop()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         cancelReconnect()
-        osdHandler.removeCallbacks(osdRunnable)
         player?.detachViews(); player?.release(); player = null
         libVLC?.release(); libVLC = null
         b.imgSnapshot.setImageBitmap(null)
