@@ -53,8 +53,14 @@ class PlayerActivity : AppCompatActivity() {
 
     private lateinit var presetBtns: List<Pair<Button, Int>>
 
-    // OSD Handler (콜백 방식으로 대체, 최초 1회만 초기화)
+    // OSD 갱신 (0.3초)
     private val osdHandler = Handler(Looper.getMainLooper())
+    private val osdRunnable = object : Runnable {
+        override fun run() {
+            refreshOsd()
+            osdHandler.postDelayed(this, 300L)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -115,38 +121,43 @@ class PlayerActivity : AppCompatActivity() {
         setupDoubleTap()
         startPlaying(rtspUrl)
 
-        val isCh4 = httpBase.contains("192.168.0.104") || label == "CH4"
-        if (isCh4) {
-            b.btnPlayback.text = "📐  ROI 영역 설정"
-            b.btnPlayback.isEnabled = true
-            b.btnPlayback.setOnClickListener { showRoiSetup() }
-        } else {
-            b.btnPlayback.isEnabled = deviceType == DeviceType.CAMERA
-            b.btnPlayback.setOnClickListener {
-                startActivity(Intent(this, PlaybackActivity::class.java).apply {
-                    putExtra("httpBase", httpBase)
-                    putExtra("username", username)
-                    putExtra("password", password)
-                    putExtra("label", label)
-                })
+        val isDirectCh4 = httpBase.contains("192.168.0.104")
+        when {
+            isDirectCh4 -> {
+                b.btnPlayback.text = "📐  ROI 영역 설정"
+                b.btnPlayback.isEnabled = true
+                b.btnPlayback.setOnClickListener { showRoiSetup(httpBase, username, password) }
+            }
+            deviceType == DeviceType.NVR -> {
+                b.btnPlayback.text = "📹  설정에서 NVR 재생"
+                b.btnPlayback.isEnabled = false
+                b.btnPlayback.alpha = 0.4f
+            }
+            else -> {
+                b.btnPlayback.text = "📹  녹화 재생"
+                b.btnPlayback.isEnabled = deviceType == DeviceType.CAMERA
+                b.btnPlayback.setOnClickListener {
+                    startActivity(Intent(this, PlaybackActivity::class.java).apply {
+                        putExtra("httpBase", httpBase)
+                        putExtra("username", username)
+                        putExtra("password", password)
+                        putExtra("label", label)
+                    })
+                }
             }
         }
 
-        // OSD 갱신 시작 (0.3초 간격)
-        if (ocrOn) {
-            osdHandler.post(osdRunnable)
-        }
+        if (ocrOn) osdHandler.post(osdRunnable)
     }
 
-    // ── OSD 갱신 ──
+    // ── OSD 갱신 (SharedPreferences에서 읽기) ──
     fun refreshOsd() {
-        val wind   = OcrSettings.getLatestWind(this)
-        val weight = OcrSettings.getLatestWeight(this)
+        val wind        = OcrSettings.getLatestWind(this)
+        val weight      = OcrSettings.getLatestWeight(this)
         val windAlert   = OcrSettings.isLatestWindAlert(this)
         val weightAlert = OcrSettings.isLatestWeightAlert(this)
-        val isTon = OcrSettings.isWeightTon(this)
+        val isTon       = OcrSettings.isWeightTon(this)
 
-        // 값 있으면 표시, 없으면 -- (타임아웃 없음 - 마지막 값 유지)
         b.osdWindPlayer.text = if (wind != null) "풍속: %.1f m/s".format(wind) else "풍속: --"
         b.osdWeightPlayer.text = if (weight != null) {
             if (isTon) "중량: %.2f t".format(weight) else "중량: %.1f kg".format(weight)
@@ -158,62 +169,40 @@ class PlayerActivity : AppCompatActivity() {
             if (weightAlert) Color.parseColor("#FF4444") else Color.WHITE)
     }
 
-    // ── ROI 설정 (전체화면 오버레이, Dialog 없음) ──
-    private fun showRoiSetup() {
-        // HTTP 스냅샷을 배경으로 사용 (영상과 좌표 일치)
-        val httpBase = intent.getStringExtra("httpBase") ?: ""
-        val username = intent.getStringExtra("username") ?: "admin"
-        val password = intent.getStringExtra("password") ?: ""
+    // ── ROI 설정 (HTTP 스냅샷 배경) ──
+    private fun showRoiSetup(httpBase: String, username: String, password: String) {
         val snapshotUrl = "$httpBase/ISAPI/Streaming/channels/101/picture"
+        Toast.makeText(this, "스냅샷 로딩 중...", Toast.LENGTH_SHORT).show()
 
-        // 비동기로 스냅샷 가져오기
-        android.os.AsyncTask.execute {
+        Thread {
             val frame = try {
-                val authCache = java.util.concurrent.ConcurrentHashMap<com.burgstaller.okhttp.digest.CachingAuthenticator, com.burgstaller.okhttp.digest.CachingAuthenticator>()
-                val credentials = com.burgstaller.okhttp.digest.Credentials(username, password)
-                val authenticator = com.burgstaller.okhttp.DispatchingAuthenticator.Builder()
-                    .with("digest", com.burgstaller.okhttp.digest.DigestAuthenticator(credentials))
-                    .with("basic", com.burgstaller.okhttp.basic.BasicAuthenticator(credentials))
-                    .build()
-                val client = okhttp3.OkHttpClient.Builder()
-                    .connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
-                    .readTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
-                    .build()
-                val req = okhttp3.Request.Builder().url(snapshotUrl)
-                    .header("Authorization", okhttp3.Credentials.basic(username, password))
-                    .build()
-                client.newCall(req).execute().use { resp ->
-                    resp.body?.bytes()?.let {
-                        android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size)
-                    }
-                }
-            } catch (e: Exception) { captureCurrentFrame() }
+                val req = java.net.URL(snapshotUrl).openConnection() as java.net.HttpURLConnection
+                val encoded = android.util.Base64.encodeToString(
+                    "$username:$password".toByteArray(), android.util.Base64.NO_WRAP)
+                req.setRequestProperty("Authorization", "Basic $encoded")
+                req.connectTimeout = 3000; req.readTimeout = 3000
+                if (req.responseCode == 200)
+                    BitmapFactory.decodeStream(req.inputStream)
+                else null
+            } catch (e: Exception) { null }
             runOnUiThread { showRoiOverlay(frame) }
-        }
+        }.start()
     }
 
-    private fun showRoiSetupOld() {
-        val frame = captureCurrentFrame()
-
-        showRoiOverlay(null)
-    }
-
-    private fun showRoiOverlay(frame: android.graphics.Bitmap?) {
+    private fun showRoiOverlay(frame: Bitmap?) {
         val root = window.decorView.findViewById<ViewGroup>(android.R.id.content)
 
         val overlay = FrameLayout(this).apply {
             setBackgroundColor(Color.TRANSPARENT)
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
+                ViewGroup.LayoutParams.MATCH_PARENT)
         }
 
-        // 배경: 캡처 프레임 또는 검정
         val bgImage = ImageView(this).apply {
             frame?.let { setImageBitmap(it) }
             scaleType = ImageView.ScaleType.FIT_CENTER
-            alpha = 1.0f  // 원본 밝기 유지
+            alpha = 1.0f
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
@@ -221,7 +210,6 @@ class PlayerActivity : AppCompatActivity() {
         }
         overlay.addView(bgImage)
 
-        // ROI 드로잉 레이어
         val roiView = RoiOverlayView(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -231,21 +219,18 @@ class PlayerActivity : AppCompatActivity() {
         }
         overlay.addView(roiView)
 
-        // 상단 안내 텍스트
         val tvGuide = TextView(this).apply {
-            text = "아래 버튼 선택 후 화면에서 드래그하여 영역 설정"
+            text = "버튼 선택 후 화면에서 드래그하여 영역 설정"
             setTextColor(Color.WHITE); textSize = 15f
             setBackgroundColor(Color.parseColor("#CC000000"))
             gravity = Gravity.CENTER
             setPadding(0, 12, 0, 12)
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            )
+                FrameLayout.LayoutParams.WRAP_CONTENT)
         }
         overlay.addView(tvGuide)
 
-        // 하단 버튼 바 (Dialog 없이 → 드래그 가능!)
         val btnBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -260,8 +245,9 @@ class PlayerActivity : AppCompatActivity() {
             this.text = text; textSize = 13f
             setTextColor(Color.WHITE)
             setBackgroundColor(Color.parseColor(color))
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                .also { it.marginEnd = 8 }
+            layoutParams = LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
+            ).also { it.marginEnd = 8 }
             setOnClickListener { action() }
         }
 
@@ -271,26 +257,21 @@ class PlayerActivity : AppCompatActivity() {
                 OcrSettings.setWindRoi(this, roi)
                 Toast.makeText(this, "풍속 ROI 저장됨", Toast.LENGTH_SHORT).show()
             }
-            tvGuide.text = "🌬 풍속 영역을 드래그하세요 (파란색)"
-            Toast.makeText(this, "풍속 영역을 드래그하세요", Toast.LENGTH_SHORT).show()
+            tvGuide.text = "🌬 풍속 영역을 드래그하세요"
         }
-
         val btnWeight = makeBtn("⚖ 중량 영역", "#8F4A00") {
             roiView.currentMode = RoiOverlayView.RoiMode.WEIGHT
             roiView.onRoiSet = { _, roi ->
                 OcrSettings.setWeightRoi(this, roi)
                 Toast.makeText(this, "중량 ROI 저장됨", Toast.LENGTH_SHORT).show()
             }
-            tvGuide.text = "⚖ 중량 영역을 드래그하세요 (주황색)"
-            Toast.makeText(this, "중량 영역을 드래그하세요", Toast.LENGTH_SHORT).show()
+            tvGuide.text = "⚖ 중량 영역을 드래그하세요"
         }
-
         val btnDone = makeBtn("✅ 저장 완료", "#1A6A2A") {
             root.removeView(overlay)
             frame?.recycle()
             Toast.makeText(this, "ROI 설정 저장 완료!", Toast.LENGTH_SHORT).show()
         }
-
         val btnCancel = makeBtn("✕ 취소", "#4A1A1A") {
             root.removeView(overlay)
             frame?.recycle()
@@ -299,21 +280,10 @@ class PlayerActivity : AppCompatActivity() {
         btnBar.addView(btnWind); btnBar.addView(btnWeight)
         btnBar.addView(btnDone); btnBar.addView(btnCancel)
         overlay.addView(btnBar)
-
         root.addView(overlay)
     }
 
-    private fun captureCurrentFrame(): Bitmap? {
-        return try {
-            for (i in 0 until b.vlcPlayer.childCount) {
-                val child = b.vlcPlayer.getChildAt(i)
-                if (child is TextureView) return child.bitmap
-            }
-            null
-        } catch (e: Exception) { null }
-    }
-
-    // ── 재생 시작 ──
+    // ── 재생 ──
     private fun startPlaying(url: String) {
         player?.stop(); player?.detachViews(); player?.release()
         val p = MediaPlayer(libVLC)
@@ -452,7 +422,7 @@ class PlayerActivity : AppCompatActivity() {
         setupDpad(b.btnNW,-50,-50); setupDpad(b.btnNE,50,-50)
         setupDpad(b.btnSW,-50, 50); setupDpad(b.btnSE,50, 50)
         b.btnStop.setOnClickListener { ptz?.stop() }
-        b.btnZoomIn.setOnTouchListener  { _, ev ->
+        b.btnZoomIn.setOnTouchListener { _, ev ->
             when(ev.action) {
                 MotionEvent.ACTION_DOWN -> ptz?.zoom(true)
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> ptz?.zoomStop()
