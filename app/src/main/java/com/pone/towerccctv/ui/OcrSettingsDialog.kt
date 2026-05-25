@@ -6,8 +6,22 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.view.ViewGroup
+import android.graphics.BitmapFactory
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.widget.*
+import com.burgstaller.okhttp.AuthenticationCacheInterceptor
+import com.burgstaller.okhttp.CachingAuthenticatorDecorator
+import com.burgstaller.okhttp.DispatchingAuthenticator
+import com.burgstaller.okhttp.basic.BasicAuthenticator
+import com.burgstaller.okhttp.digest.CachingAuthenticator
+import com.burgstaller.okhttp.digest.Credentials
+import com.burgstaller.okhttp.digest.DigestAuthenticator
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import com.pone.towerccctv.ocr.OcrSettings
 import com.pone.towerccctv.ocr.RoiOverlayView
 
@@ -239,21 +253,35 @@ class OcrSettingsDialog(
             setOnClickListener { action() }
         }
 
+        // Digest 인증 클라이언트
+        val authCache = ConcurrentHashMap<String, CachingAuthenticator>()
+        val creds = Credentials(snapUser, snapPass)
+        val auth = DispatchingAuthenticator.Builder()
+            .with("digest", DigestAuthenticator(creds))
+            .with("basic", BasicAuthenticator(creds))
+            .build()
+        val httpClient = OkHttpClient.Builder()
+            .connectTimeout(4, TimeUnit.SECONDS)
+            .readTimeout(4, TimeUnit.SECONDS)
+            .authenticator(CachingAuthenticatorDecorator(auth, authCache))
+            .addInterceptor(AuthenticationCacheInterceptor(authCache))
+            .build()
+        val mainHandler = Handler(Looper.getMainLooper())
+
         // 스냅샷 로드 함수
         fun loadSnapshot() {
             tvGuide.text = "📡  스냅샷 수신 중..."
             Thread {
                 val bmp = try {
-                    val conn = java.net.URL(snapUrl).openConnection() as java.net.HttpURLConnection
-                    val encoded = android.util.Base64.encodeToString(
-                        "$snapUser:$snapPass".toByteArray(), android.util.Base64.NO_WRAP)
-                    conn.setRequestProperty("Authorization", "Basic $encoded")
-                    conn.connectTimeout = 4000; conn.readTimeout = 4000
-                    if (conn.responseCode == 200) BitmapFactory.decodeStream(conn.inputStream)
-                    else null
+                    val req = Request.Builder().url(snapUrl).get().build()
+                    httpClient.newCall(req).execute().use { resp ->
+                        if (resp.isSuccessful)
+                            resp.body?.bytes()?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+                        else null
+                    }
                 } catch (e: Exception) { null }
 
-                (context as? android.app.Activity)?.runOnUiThread {
+                mainHandler.post {
                     if (bmp != null) {
                         imgView.setImageBitmap(bmp)
                         tvGuide.text = "버튼 선택 후 드래그 | 🔄 새로고침으로 이미지 업데이트"
