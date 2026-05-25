@@ -1,0 +1,18 @@
+[
+    {
+        "merged": "C:\\Users\\ajagu\\.gradle\\daemon\\8.4\\com.pone.towerccctv.app-mergeDebugResources-37:\\layout\\activity_player.xml",
+        "source": "C:\\Users\\ajagu\\.gradle\\daemon\\8.4\\com.pone.towerccctv.app-main-40:\\layout\\activity_player.xml"
+    },
+    {
+        "merged": "com.pone.towerccctv.app-mergeDebugResources-37:/layout/activity_main.xml",
+        "source": "com.pone.towerccctv.app-main-40:/layout/activity_main.xml"
+    },
+    {
+        "merged": "C:\\Users\\ajagu\\.gradle\\daemon\\8.4\\com.pone.towerccctv.app-mergeDebugResources-37:\\layout\\activity_main.xml",
+        "source": "C:\\Users\\ajagu\\.gradle\\daemon\\8.4\\com.pone.towerccctv.app-main-40:\\layout\\activity_main.xml"
+    },
+    {
+        "merged": "com.pone.towerccctv.app-mergeDebugResources-37:/layout/activity_player.xml",
+        "source": "com.pone.towerccctv.app-main-40:/layout/activity_player.xml"
+    }
+]

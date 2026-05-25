@@ -29,6 +29,7 @@
         <activity android:name=".ui.PlayerActivity" android:exported="false"
             android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|keyboardHidden"/>
+        <activity android:name=".ui.AlertHistoryActivity"/>
         <activity android:name=".ui.PlaybackActivity" android:exported="false"
             android:screenOrientation="landscape"/>
 

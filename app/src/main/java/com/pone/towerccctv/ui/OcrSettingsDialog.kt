@@ -144,7 +144,7 @@ class OcrSettingsDialog(
             OcrSettings.setOcrEnabled(context, ocrSwitch.isChecked)
             windInput.text.toString().toFloatOrNull()?.let { OcrSettings.setWindLimit(context, it) }
             weightInput.text.toString().toFloatOrNull()?.let { OcrSettings.setWeightLimit(context, it) }
-            OcrSettings.setWeightTon(context, btnTon.isChecked)
+            OcrSettings.setWeightTon(context, btnTon.currentTextColor == android.graphics.Color.WHITE)
             // ROI 설정 화면 열기
             showRoiScreen()
             onChanged?.invoke()
@@ -174,7 +174,7 @@ class OcrSettingsDialog(
                 OcrSettings.setOcrEnabled(context, ocrSwitch.isChecked)
                 windInput.text.toString().toFloatOrNull()?.let { OcrSettings.setWindLimit(context, it) }
                 weightInput.text.toString().toFloatOrNull()?.let { OcrSettings.setWeightLimit(context, it) }
-                OcrSettings.setWeightTon(context, btnTon.isChecked)
+                OcrSettings.setWeightTon(context, btnTon.currentTextColor == android.graphics.Color.WHITE)
                 Toast.makeText(context, "설정 저장됨", Toast.LENGTH_SHORT).show()
                 onChanged?.invoke()
                 dialog.dismiss()
@@ -198,26 +198,33 @@ class OcrSettingsDialog(
 
         val root = android.widget.FrameLayout(context)
 
-        // 스냅샷 이미지
-        val imgView = ImageView(context).apply {
-            scaleType = ImageView.ScaleType.FIT_CENTER
+        // 이미지 + ROI가 같은 컨테이너 안에서 동일 크기
+        val imageContainer = android.widget.FrameLayout(context).apply {
             setBackgroundColor(Color.BLACK)
             layoutParams = android.widget.FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             ).also { it.bottomMargin = 130 }
         }
-        root.addView(imgView)
+        root.addView(imageContainer)
 
-        // ROI 오버레이
+        // 스냅샷 이미지 - 컨테이너 꽉 채움
+        val imgView = ImageView(context).apply {
+            scaleType = ImageView.ScaleType.FIT_XY  // 여백 없이 꽉 채움
+            layoutParams = android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT)
+        }
+        imageContainer.addView(imgView)
+
+        // ROI 오버레이 - 이미지와 동일 컨테이너 (크기 100% 일치)
         val roiView = RoiOverlayView(context).apply {
             layoutParams = android.widget.FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            ).also { it.bottomMargin = 130 }
+                ViewGroup.LayoutParams.MATCH_PARENT)
             loadSavedRois(context)
         }
-        root.addView(roiView)
+        imageContainer.addView(roiView)
 
         // 안내 텍스트
         val tvGuide = TextView(context).apply {
@@ -291,23 +298,30 @@ class OcrSettingsDialog(
             }.start()
         }
 
-        val btnWind = makeBtn("🌬 풍속 영역", "#1A3A8F") {
+        val btnWind = makeBtn("🌬 풍속", "#1A3A8F") {
             roiView.currentMode = RoiOverlayView.RoiMode.WIND
             roiView.onRoiSet = { _, roi ->
                 OcrSettings.setWindRoi(context, roi)
                 Toast.makeText(context, "풍속 ROI 저장됨", Toast.LENGTH_SHORT).show()
             }
-            tvGuide.text = "🌬 풍속 영역을 드래그하세요 (파란색)"
+            tvGuide.text = "🌬 풍속 영역을 드래그하세요"
         }
-        val btnWeight = makeBtn("⚖ 중량 영역", "#8F4A00") {
+        val btnWeight = makeBtn("⚖ 중량", "#8F4A00") {
             roiView.currentMode = RoiOverlayView.RoiMode.WEIGHT
             roiView.onRoiSet = { _, roi ->
                 OcrSettings.setWeightRoi(context, roi)
                 Toast.makeText(context, "중량 ROI 저장됨", Toast.LENGTH_SHORT).show()
             }
-            tvGuide.text = "⚖ 중량 영역을 드래그하세요 (주황색)"
+            tvGuide.text = "⚖ 중량 영역을 드래그하세요"
         }
-        val btnRefresh = makeBtn("🔄 새로고침", "#2A4A2A") { loadSnapshot() }
+        val btnReset = makeBtn("↺ 초기화", "#4A4A00") {
+            // 전체화면으로 리셋 (작동 확인된 기본값)
+            OcrSettings.setWindRoi(context,   OcrSettings.Roi(0.0f, 0.0f, 1.0f, 0.5f))
+            OcrSettings.setWeightRoi(context, OcrSettings.Roi(0.0f, 0.5f, 1.0f, 0.5f))
+            roiView.loadSavedRois(context)
+            Toast.makeText(context, "ROI 초기화됨 (전체화면)", Toast.LENGTH_SHORT).show()
+        }
+        val btnRefresh = makeBtn("🔄", "#2A4A2A") { loadSnapshot() }
         val btnDone = makeBtn("✅ 완료", "#1A6A2A") {
             roiView.currentMode = RoiOverlayView.RoiMode.NONE
             dialog.dismiss()
@@ -315,7 +329,7 @@ class OcrSettingsDialog(
         }
 
         btnBar.addView(btnWind); btnBar.addView(btnWeight)
-        btnBar.addView(btnRefresh); btnBar.addView(btnDone)
+        btnBar.addView(btnReset); btnBar.addView(btnRefresh); btnBar.addView(btnDone)
         root.addView(btnBar)
 
         dialog.setContentView(root)

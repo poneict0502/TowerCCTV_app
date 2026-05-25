@@ -47,9 +47,7 @@ class OcrEngine(private val context: Context) {
     private var processing = false
     private var httpClient: OkHttpClient? = null
 
-    // 중량/풍속 별도 주기
-    private var windTickCount = 0
-    private val WIND_INTERVAL = 20  // 20회마다 풍속 인식 (0.5초 * 20 = 10초)
+
 
     fun startHttpLoop(snapshotUrl: String, username: String, password: String) {
         stopLoop()
@@ -95,10 +93,6 @@ class OcrEngine(private val context: Context) {
 
     private fun processOcr(bmp: Bitmap) {
         processing = true
-        windTickCount++
-        val doWind = (windTickCount >= WIND_INTERVAL)  // 10초마다 풍속
-        if (doWind) windTickCount = 0
-
         val weightRoi = OcrSettings.getWeightRoi(context)
         val windRoi   = OcrSettings.getWindRoi(context)
         val windLimit  = OcrSettings.getWindLimit(context)
@@ -106,22 +100,19 @@ class OcrEngine(private val context: Context) {
 
         val frame = bmp.copy(Bitmap.Config.ARGB_8888, false)
         val weightBmp = cropRoi(frame, weightRoi)
-        val windBmp   = if (doWind) cropRoi(frame, windRoi) else null
+        val windBmp   = cropRoi(frame, windRoi)
         frame.recycle()
 
-        // 이전 풍속값 유지
-        val prevWind = OcrSettings.getLatestWind(context)
-
         var weightVal: Float? = null
-        var windVal: Float?   = prevWind  // 기본값: 이전값 유지
+        var windVal: Float?   = null
         var rawWeight = ""; var rawWind = ""
-        var pending = if (doWind) 2 else 1
+        var pending = 2
 
         fun check() {
             if (pending > 0) return
             processing = false
             val wv = windVal; val wt = weightVal
-            Log.d("OCR", "중량=$wt[$rawWeight]" + if (doWind) " 풍속=$wv[$rawWind]" else "")
+            Log.d("OCR", "중량=$wt[$rawWeight] 풍속=$wv[$rawWind]")
             val result = OcrResult(
                 windSpeed = wv, weight = wt,
                 windAlert   = wv != null && wv >= windLimit,
@@ -142,16 +133,14 @@ class OcrEngine(private val context: Context) {
             }
             .addOnFailureListener { pending--; check() }
 
-        // 풍속: 10초마다만 인식
-        if (doWind && windBmp != null) {
-            recognizer.process(InputImage.fromBitmap(windBmp, 0))
-                .addOnSuccessListener { txt ->
-                    rawWind = txt.text.replace("\n", " ").trim()
-                    windVal = extractWindNumber(txt.text) ?: prevWind
-                    pending--; check()
-                }
-                .addOnFailureListener { pending--; check() }
-        }
+        // 풍속: 매번 인식
+        recognizer.process(InputImage.fromBitmap(windBmp, 0))
+            .addOnSuccessListener { txt ->
+                rawWind = txt.text.replace("\n", " ").trim()
+                windVal = extractWindNumber(txt.text)
+                pending--; check()
+            }
+            .addOnFailureListener { pending--; check() }
     }
 
     private fun cropRoi(bmp: Bitmap, roi: OcrSettings.Roi): Bitmap {
