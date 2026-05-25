@@ -151,17 +151,15 @@ class PlayerActivity : AppCompatActivity() {
             }
         }
 
-        // 단독모드에서 OCR 직접 실행 (4번 채널 HTTP 스냅샷)
         if (ocrOn) {
-            val ch4Base = "http://192.168.0.104"
-            val ch4User = "admin"
-            val ch4Pass = "1q2w3e4r@"
-            val snapUrl = "$ch4Base/ISAPI/Streaming/channels/101/picture"
+            // ★ 캐시된 마지막 값 즉시 표시 (딜레이 없음)
+            refreshOsd()
+
+            // 단독모드 OCR 직접 실행 (CH4 HTTP 스냅샷)
+            val snapUrl = "http://192.168.0.104/ISAPI/Streaming/channels/101/picture"
             ocrEngine = OcrEngine(this).also { engine ->
-                engine.onResult = { result ->
-                    // SharedPreferences에 저장됨 (OcrEngine 내부)
-                }
-                engine.startHttpLoop(snapUrl, ch4User, ch4Pass)
+                engine.onResult = { _ -> /* SharedPreferences 자동 저장 */ }
+                engine.startHttpLoop(snapUrl, "admin", "1q2w3e4r@")
             }
             osdHandler.post(osdRunnable)
         }
