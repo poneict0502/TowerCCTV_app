@@ -25,7 +25,6 @@ id btnP7
 id btnP8
 id btnP9
 id btnPanelMove
-id btnPlayback
 id btnS
 id btnSE
 id btnSW

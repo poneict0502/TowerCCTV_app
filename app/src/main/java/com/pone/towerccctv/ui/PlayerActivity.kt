@@ -134,23 +134,6 @@ class PlayerActivity : AppCompatActivity() {
         setupDoubleTap()
         startPlaying(rtspUrl)
 
-        // 녹화 재생 버튼 (NVR은 설정 메뉴에서)
-        if (deviceType == DeviceType.NVR) {
-            b.btnPlayback.text = "📹  설정에서 NVR 재생"
-            b.btnPlayback.isEnabled = false
-            b.btnPlayback.alpha = 0.4f
-        } else {
-            b.btnPlayback.text = "📹  녹화 재생"
-            b.btnPlayback.isEnabled = true
-            b.btnPlayback.setOnClickListener {
-                startActivity(Intent(this, PlaybackActivity::class.java).apply {
-                    putExtra("httpBase", httpBase)
-                    putExtra("username", username)
-                    putExtra("password", password)
-                    putExtra("label", label)
-                })
-            }
-        }
 
         if (ocrOn) {
             // MainActivity 백그라운드 OCR이 SharedPreferences 업데이트
@@ -346,9 +329,22 @@ class PlayerActivity : AppCompatActivity() {
             prefs.edit().putBoolean(panelKey, isPanelRight).apply()
         }
 
-        b.ptzToggleRow.setOnClickListener { b.swPtz.isChecked = !b.swPtz.isChecked }
+        // 방향키 ON/OFF 채널별 저장
+        val ptzKey = "ptz_dpad_on_$channelLabel"
+        val ptzPrefs = getSharedPreferences("ptz_panel", Context.MODE_PRIVATE)
+        val savedPtzOn = ptzPrefs.getBoolean(ptzKey, true)
+        b.swPtz.isChecked = savedPtzOn
+        b.ptzArea.visibility = if (savedPtzOn) View.VISIBLE else View.INVISIBLE
+
+        b.ptzToggleRow.setOnClickListener {
+            val newOn = !b.swPtz.isChecked
+            b.swPtz.isChecked = newOn
+            b.ptzArea.visibility = if (newOn) View.VISIBLE else View.INVISIBLE
+            ptzPrefs.edit().putBoolean(ptzKey, newOn).apply()
+        }
         b.swPtz.setOnCheckedChangeListener { _, on ->
             b.ptzArea.visibility = if (on) View.VISIBLE else View.INVISIBLE
+            ptzPrefs.edit().putBoolean(ptzKey, on).apply()
         }
         setupDpad(b.btnN,  0,-60); setupDpad(b.btnS, 0,  60)
         setupDpad(b.btnW,-60,  0); setupDpad(b.btnE,60,   0)

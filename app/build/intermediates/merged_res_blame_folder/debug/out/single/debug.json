@@ -28,10 +28,6 @@
         "source": "C:\\Users\\ajagu\\.gradle\\daemon\\8.4\\com.pone.towerccctv.app-main-40:\\drawable\\bg_btn.xml"
     },
     {
-        "merged": "com.pone.towerccctv.app-merged_res-38:/layout_activity_main.xml.flat",
-        "source": "com.pone.towerccctv.app-main-40:/layout/activity_main.xml"
-    },
-    {
         "merged": "C:\\Users\\ajagu\\.gradle\\daemon\\8.4\\com.pone.towerccctv.app-merged_res-38:\\drawable_ic_launcher_background.xml.flat",
         "source": "C:\\Users\\ajagu\\.gradle\\daemon\\8.4\\com.pone.towerccctv.app-main-40:\\drawable\\ic_launcher_background.xml"
     },

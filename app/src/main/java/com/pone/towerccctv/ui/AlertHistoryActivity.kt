@@ -167,12 +167,21 @@ class AlertHistoryActivity : AppCompatActivity() {
     private fun exportCsv() {
         try {
             val csv = db.exportCsv()
-            val dir = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-                ?: filesDir
+            // 다운로드 폴더 하위 AIVION 폴더에 저장
+            val dir = File(
+                android.os.Environment.getExternalStoragePublicDirectory(
+                    android.os.Environment.DIRECTORY_DOWNLOADS), "AIVION"
+            )
+            if (!dir.exists()) dir.mkdirs()
             val sdf = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.KOREA)
-            val file = File(dir, "alert_history_${sdf.format(java.util.Date())}.csv")
-            file.writeText(csv)
-            Toast.makeText(this, "저장됨: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+            val file = File(dir, "경보이력_${sdf.format(java.util.Date())}.csv")
+            file.writeText(csv, Charsets.UTF_8)
+            // 미디어 스캔 (파일 관리자에서 바로 보임)
+            android.media.MediaScannerConnection.scanFile(this,
+                arrayOf(file.absolutePath), null, null)
+            Toast.makeText(this,
+                "저장 완료! 다운로드/AIVION/${file.name}",
+                Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
             Toast.makeText(this, "내보내기 실패: ${e.message}", Toast.LENGTH_SHORT).show()
         }

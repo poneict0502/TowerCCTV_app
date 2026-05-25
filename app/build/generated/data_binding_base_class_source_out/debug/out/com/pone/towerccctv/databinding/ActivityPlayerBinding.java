@@ -67,9 +67,6 @@ public final class ActivityPlayerBinding implements ViewBinding {
   public final Button btnPanelMove;
 
   @NonNull
-  public final Button btnPlayback;
-
-  @NonNull
   public final Button btnS;
 
   @NonNull
@@ -133,8 +130,8 @@ public final class ActivityPlayerBinding implements ViewBinding {
       @NonNull Button btnN, @NonNull Button btnNE, @NonNull Button btnNW, @NonNull Button btnP1,
       @NonNull Button btnP2, @NonNull Button btnP3, @NonNull Button btnP4, @NonNull Button btnP5,
       @NonNull Button btnP6, @NonNull Button btnP7, @NonNull Button btnP8, @NonNull Button btnP9,
-      @NonNull Button btnPanelMove, @NonNull Button btnPlayback, @NonNull Button btnS,
-      @NonNull Button btnSE, @NonNull Button btnSW, @NonNull Button btnStop, @NonNull Button btnW,
+      @NonNull Button btnPanelMove, @NonNull Button btnS, @NonNull Button btnSE,
+      @NonNull Button btnSW, @NonNull Button btnStop, @NonNull Button btnW,
       @NonNull Button btnZoomIn, @NonNull Button btnZoomOut, @NonNull View dotPlayer,
       @NonNull ImageView imgSnapshot, @NonNull TextView ipPlayer, @NonNull TextView lblPlayer,
       @NonNull TextView osdWeightPlayer, @NonNull TextView osdWindPlayer,
@@ -156,7 +153,6 @@ public final class ActivityPlayerBinding implements ViewBinding {
     this.btnP8 = btnP8;
     this.btnP9 = btnP9;
     this.btnPanelMove = btnPanelMove;
-    this.btnPlayback = btnPlayback;
     this.btnS = btnS;
     this.btnSE = btnSE;
     this.btnSW = btnSW;
@@ -290,12 +286,6 @@ public final class ActivityPlayerBinding implements ViewBinding {
         break missingId;
       }
 
-      id = R.id.btnPlayback;
-      Button btnPlayback = ViewBindings.findChildViewById(rootView, id);
-      if (btnPlayback == null) {
-        break missingId;
-      }
-
       id = R.id.btnS;
       Button btnS = ViewBindings.findChildViewById(rootView, id);
       if (btnS == null) {
@@ -417,10 +407,10 @@ public final class ActivityPlayerBinding implements ViewBinding {
       }
 
       return new ActivityPlayerBinding((LinearLayout) rootView, btnE, btnN, btnNE, btnNW, btnP1,
-          btnP2, btnP3, btnP4, btnP5, btnP6, btnP7, btnP8, btnP9, btnPanelMove, btnPlayback, btnS,
-          btnSE, btnSW, btnStop, btnW, btnZoomIn, btnZoomOut, dotPlayer, imgSnapshot, ipPlayer,
-          lblPlayer, osdWeightPlayer, osdWindPlayer, ptzArea, ptzPanel, ptzToggleRow, swPtz,
-          touchOverlay, tvStreamStatus, vlcPlayer);
+          btnP2, btnP3, btnP4, btnP5, btnP6, btnP7, btnP8, btnP9, btnPanelMove, btnS, btnSE, btnSW,
+          btnStop, btnW, btnZoomIn, btnZoomOut, dotPlayer, imgSnapshot, ipPlayer, lblPlayer,
+          osdWeightPlayer, osdWindPlayer, ptzArea, ptzPanel, ptzToggleRow, swPtz, touchOverlay,
+          tvStreamStatus, vlcPlayer);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

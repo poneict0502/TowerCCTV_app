@@ -3243,7 +3243,6 @@ int id btnP7 0x7f08006f
 int id btnP8 0x7f080070
 int id btnP9 0x7f080071
 int id btnPanelMove 0x7f08024a
-int id btnPlayback 0x7f080072
 int id btnS 0x7f080073
 int id btnSE 0x7f080074
 int id btnSW 0x7f080075

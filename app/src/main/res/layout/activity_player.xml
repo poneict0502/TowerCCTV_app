@@ -285,11 +285,5 @@
             </LinearLayout>
         </ScrollView>
 
-        <!-- 녹화 재생 -->
-        <Button android:id="@+id/btnPlayback"
-            android:layout_width="match_parent" android:layout_height="44dp"
-            android:layout_margin="6dp"
-            android:text="📹  녹화 재생" android:textSize="12sp"
-            android:textColor="#CCCCCC" android:background="@drawable/bg_btn"/>
     </LinearLayout>
 </LinearLayout>

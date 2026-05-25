@@ -106,7 +106,6 @@ class MainActivity : AppCompatActivity() {
             popup.menu.add(0, 1, 0, "📋  장치 관리")
             popup.menu.add(0, 2, 1, "⚡  기본 장치 자동 등록")
             popup.menu.add(0, 3, 2, "📡  OCR / 계측 설정")
-            popup.menu.add(0, 4, 3, "📹  NVR 녹화 재생")
             popup.menu.add(0, 5, 4, "🕐  카메라 시간 동기화")
             popup.menu.add(0, 6, 5, "📊  경보 이력 조회")
             popup.setOnMenuItemClickListener { item ->
@@ -114,7 +113,6 @@ class MainActivity : AppCompatActivity() {
                     1 -> startActivity(Intent(this, DeviceListActivity::class.java))
                     2 -> showAutoRegisterDialog()
                     3 -> OcrSettingsDialog(this) { restartAll() }.show()
-                    4 -> showNvrPlaybackSelector()
                     5 -> syncCameraTime()
                     6 -> startActivity(Intent(this, AlertHistoryActivity::class.java))
                 }
@@ -397,17 +395,6 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun showNvrPlaybackSelector() {
-        AlertDialog.Builder(this)
-            .setTitle("📹 NVR 녹화 재생")
-            .setItems(arrayOf("CH 1","CH 2","CH 3","CH 4")) { _, idx ->
-                startActivity(Intent(this, PlaybackActivity::class.java).apply {
-                    putExtra("httpBase", "http://192.168.0.100")
-                    putExtra("username", "admin"); putExtra("password", "1q2w3e4r@")
-                    putExtra("label", "NVR-CH${idx+1}"); putExtra("nvrChannel", idx+1)
-                })
-            }.setNegativeButton("취소", null).show()
-    }
 
     private fun syncCameraTime() {
         val devices = DeviceStore.load(this).filter { it.enabled }  // 카메라 + NVR 모두
