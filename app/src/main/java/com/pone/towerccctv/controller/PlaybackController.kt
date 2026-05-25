@@ -1,16 +1,23 @@
 package com.pone.towerccctv.controller
 
 import android.util.Log
+import com.burgstaller.okhttp.AuthenticationCacheInterceptor
+import com.burgstaller.okhttp.CachingAuthenticatorDecorator
+import com.burgstaller.okhttp.DispatchingAuthenticator
+import com.burgstaller.okhttp.basic.BasicAuthenticator
+import com.burgstaller.okhttp.digest.CachingAuthenticator
+import com.burgstaller.okhttp.digest.Credentials
+import com.burgstaller.okhttp.digest.DigestAuthenticator
 import com.pone.towerccctv.model.Channel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.Credentials
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 data class RecordSegment(val start: Date, val end: Date, val rtspUrl: String) {
@@ -19,17 +26,35 @@ data class RecordSegment(val start: Date, val end: Date, val rtspUrl: String) {
     val durStr: String get() {
         val s = (end.time - start.time) / 1000
         return if (s >= 3600) "%d:%02d:%02d".format(s/3600, (s%3600)/60, s%60)
-               else "%02d:%02d".format(s/60, s%60)
+        else "%02d:%02d".format(s/60, s%60)
     }
 }
 
 class PlaybackController(private val ch: Channel) {
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(5, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).build()
+
+    // Digest 인증 클라이언트
+    private val client: OkHttpClient by lazy {
+        val authCache = ConcurrentHashMap<String, CachingAuthenticator>()
+        val creds = Credentials(ch.username, ch.password)
+        val auth = DispatchingAuthenticator.Builder()
+            .with("digest", DigestAuthenticator(creds))
+            .with("basic", BasicAuthenticator(creds))
+            .build()
+        OkHttpClient.Builder()
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .authenticator(CachingAuthenticatorDecorator(auth, authCache))
+            .addInterceptor(AuthenticationCacheInterceptor(authCache))
+            .build()
+    }
+
     private val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
         timeZone = TimeZone.getTimeZone("UTC") }
     private val rtsp = SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'", Locale.US).apply {
         timeZone = TimeZone.getTimeZone("UTC") }
+
+    // 채널번호 → trackID (CH1=101, CH2=201, ..., CH16=1601)
+    private val trackId get() = ch.ptzChannel * 100 + 1
 
     suspend fun search(date: Date): List<RecordSegment> = withContext(Dispatchers.IO) {
         val cal = Calendar.getInstance().apply { time = date }
@@ -41,12 +66,12 @@ class PlaybackController(private val ch: Channel) {
         val xml = """<?xml version="1.0" encoding="UTF-8"?>
 <CMSearchDescription>
     <searchID>${UUID.randomUUID()}</searchID>
-    <trackList><trackID>101</trackID></trackList>
+    <trackList><trackID>$trackId</trackID></trackList>
     <timeSpanList><timeSpan>
         <startTime>${iso.format(from)}</startTime>
         <endTime>${iso.format(to)}</endTime>
     </timeSpan></timeSpanList>
-    <maxResults>100</maxResults>
+    <maxResults>200</maxResults>
     <searchResultPostion>0</searchResultPostion>
     <metadataList><metadataDescriptor>//recordType.meta.std-cgi.com</metadataDescriptor></metadataList>
 </CMSearchDescription>"""
@@ -54,17 +79,22 @@ class PlaybackController(private val ch: Channel) {
         return@withContext try {
             val req = Request.Builder()
                 .url("${ch.httpBase}/ISAPI/ContentMgmt/search")
-                .header("Authorization", Credentials.basic(ch.username, ch.password))
-                .post(xml.toRequestBody("application/xml".toMediaType())).build()
-            val body = client.newCall(req).execute().use { it.body?.string() ?: "" }
+                .post(xml.toRequestBody("application/xml".toMediaType()))
+                .build()
+            val resp = client.newCall(req).execute()
+            val body = resp.use { it.body?.string() ?: "" }
+            Log.d("Playback", "검색 응답: ${resp.code} trackID=$trackId")
             parseXml(body)
-        } catch (e: Exception) { Log.e("Playback", e.message ?: ""); emptyList() }
+        } catch (e: Exception) {
+            Log.e("Playback", "검색 실패: ${e.message}")
+            emptyList()
+        }
     }
 
     fun playbackUrl(seg: RecordSegment): String {
         val ip = ch.httpBase.removePrefix("http://").split(":")[0]
-        return "rtsp://${ch.username}:${ch.password}@$ip:554/Streaming/tracks/101" +
-               "?starttime=${rtsp.format(seg.start)}&endtime=${rtsp.format(seg.end)}"
+        return "rtsp://${ch.username}:${ch.password}@$ip:554/Streaming/tracks/$trackId" +
+                "?starttime=${rtsp.format(seg.start)}&endtime=${rtsp.format(seg.end)}"
     }
 
     private fun parseXml(xml: String): List<RecordSegment> {
@@ -78,6 +108,7 @@ class PlaybackController(private val ch: Channel) {
                     result.add(seg.copy(rtspUrl = playbackUrl(seg)))
                 }
             }
+        Log.d("Playback", "파싱 결과: ${result.size}개 구간")
         return result
     }
 }

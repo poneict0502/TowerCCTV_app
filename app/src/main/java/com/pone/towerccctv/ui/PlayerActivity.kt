@@ -305,7 +305,7 @@ class PlayerActivity : AppCompatActivity() {
             setBackgroundColor(Color.parseColor("#1E1E22"))
             setPadding(16, 12, 16, 12); textSize = 16f
             inputType = android.text.InputType.TYPE_CLASS_TEXT or
-                        android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                    android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         }
         AlertDialog.Builder(this)
             .setTitle("프리셋 $id 설정")
@@ -320,22 +320,30 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun setupControls() {
-        // PTZ 패널 좌우 이동
-        var isPanelRight = true
-        b.btnPanelMove.setOnClickListener {
-            val parent = b.root as? android.widget.LinearLayout ?: return@setOnClickListener
+        // PTZ 패널 좌우 이동 (채널별 저장)
+        val panelKey = "ptz_panel_right_$channelLabel"
+        val prefs = getSharedPreferences("ptz_panel", Context.MODE_PRIVATE)
+        var isPanelRight = prefs.getBoolean(panelKey, true)
+
+        fun applyPanelPosition(right: Boolean) {
+            val parent = b.root as? android.widget.LinearLayout ?: return
             parent.removeView(b.ptzPanel)
-            if (isPanelRight) {
-                // 우측 → 좌측으로
-                parent.addView(b.ptzPanel, 0)
-                b.btnPanelMove.text = "우측 ▶"
-                isPanelRight = false
-            } else {
-                // 좌측 → 우측으로
+            if (right) {
                 parent.addView(b.ptzPanel)
                 b.btnPanelMove.text = "◀ 좌측"
-                isPanelRight = true
+            } else {
+                parent.addView(b.ptzPanel, 0)
+                b.btnPanelMove.text = "우측 ▶"
             }
+        }
+
+        // 저장된 위치 적용
+        applyPanelPosition(isPanelRight)
+
+        b.btnPanelMove.setOnClickListener {
+            isPanelRight = !isPanelRight
+            applyPanelPosition(isPanelRight)
+            prefs.edit().putBoolean(panelKey, isPanelRight).apply()
         }
 
         b.ptzToggleRow.setOnClickListener { b.swPtz.isChecked = !b.swPtz.isChecked }
@@ -388,13 +396,13 @@ class PlayerActivity : AppCompatActivity() {
         } else {
             @Suppress("DEPRECATION")
             window.decorView.systemUiVisibility = (
-                android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
-                android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
-                android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
-                android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-            )
+                    android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
+                            android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                            android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                            android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                            android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                            android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    )
         }
     }
 
