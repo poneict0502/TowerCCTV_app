@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.view.ViewGroup
+import android.view.View
 import android.widget.*
 import com.pone.towerccctv.ocr.OcrSettings
 import com.pone.towerccctv.ocr.RoiOverlayView
