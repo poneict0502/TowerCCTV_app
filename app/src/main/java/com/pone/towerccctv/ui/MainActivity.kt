@@ -285,6 +285,8 @@ class MainActivity : AppCompatActivity() {
                 if (result.windSpeed != null) { lastWind = result.windSpeed; lastWindAlert = result.windAlert }
                 if (result.weight   != null) { lastWeight = result.weight;  lastWeightAlert = result.weightAlert }
                 updateOsd()
+                // CH1 카메라 POS OSD 전송 (0.5초마다)
+                sendPosOsd(lastWind, lastWeight)
             }
             engine.startHttpLoop(url, ch.username, ch.password)
         }
@@ -478,6 +480,58 @@ class MainActivity : AppCompatActivity() {
                 }
             }.start()
         }
+    }
+
+    // ── CH1 카메라 POS OSD 전송 ──
+    private fun sendPosOsd(wind: Float?, weight: Float?) {
+        val isTon = OcrSettings.isWeightTon(this)
+        val windStr   = wind?.let { "풍속 %.1f m/s".format(it) } ?: "풍속 --"
+        val weightStr = weight?.let {
+            if (isTon) "중량 %.2f t".format(it) else "중량 %.2f kg".format(it)
+        } ?: "중량 --"
+        val text = "$weightStr   $windStr"
+
+        val xml = """<?xml version="1.0" encoding="UTF-8"?>
+<TextOverlayList>
+  <TextOverlay>
+    <id>1</id>
+    <enabled>true</enabled>
+    <positionX>0</positionX>
+    <positionY>0</positionY>
+    <displayText>$text</displayText>
+  </TextOverlay>
+</TextOverlayList>"""
+
+        // CH1 카메라 정보
+        val ch1 = channels.firstOrNull { it.extractIp() == "192.168.0.101" }
+            ?: return
+
+        Thread {
+            try {
+                val authCache = java.util.concurrent.ConcurrentHashMap<String,
+                        com.burgstaller.okhttp.digest.CachingAuthenticator>()
+                val creds = com.burgstaller.okhttp.digest.Credentials(ch1.username, ch1.password)
+                val auth = com.burgstaller.okhttp.DispatchingAuthenticator.Builder()
+                    .with("digest", com.burgstaller.okhttp.digest.DigestAuthenticator(creds))
+                    .with("basic", com.burgstaller.okhttp.basic.BasicAuthenticator(creds))
+                    .build()
+                val client = okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
+                    .authenticator(com.burgstaller.okhttp.CachingAuthenticatorDecorator(auth, authCache))
+                    .addInterceptor(com.burgstaller.okhttp.AuthenticationCacheInterceptor(authCache))
+                    .build()
+                val body = okhttp3.RequestBody.create("application/xml".toMediaType(), xml)
+                val req = okhttp3.Request.Builder()
+                    .url("http://${ch1.extractIp()}/ISAPI/System/Video/inputs/channels/1/overlays/text")
+                    .put(body).build()
+                val resp = client.newCall(req).execute()
+                android.util.Log.d("PosOSD", "CH1 → ${resp.code}")
+                resp.close()
+            } catch (e: Exception) {
+                android.util.Log.e("PosOSD", "오류: ${e.message}")
+            }
+        }.start()
     }
 
     private fun showAutoRegisterDialog() {
