@@ -6,7 +6,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.view.ViewGroup
-import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
 import android.view.View
