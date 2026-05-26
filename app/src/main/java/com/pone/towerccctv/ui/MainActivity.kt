@@ -96,11 +96,17 @@ class MainActivity : AppCompatActivity() {
         // TTS 초기화
         tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                tts?.language = java.util.Locale.KOREAN
-                tts?.setSpeechRate(0.9f)
+                val result = tts?.setLanguage(java.util.Locale.KOREAN)
+                if (result == TextToSpeech.LANG_MISSING_DATA ||
+                    result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    tts?.setLanguage(java.util.Locale.getDefault())
+                }
+                tts?.setSpeechRate(0.85f)
+                android.util.Log.d("TTS", "초기화 완료")
+            } else {
+                android.util.Log.e("TTS", "초기화 실패: $status")
             }
         }
-
         b.btnSettings.setOnClickListener { view ->
             val popup = PopupMenu(this, view)
             popup.menu.add(0, 1, 0, "📋  장치 관리")
@@ -112,7 +118,13 @@ class MainActivity : AppCompatActivity() {
                 when (item.itemId) {
                     1 -> startActivity(Intent(this, DeviceListActivity::class.java))
                     2 -> showAutoRegisterDialog()
-                    3 -> OcrSettingsDialog(this) { restartAll() }.show()
+                    3 -> {
+                        ocrEngine?.stopLoop()
+                        OcrSettingsDialog(this) {
+                            ocrEngine?.release(); ocrEngine = null
+                            if (OcrSettings.isOcrEnabled(this)) startOcrLoop()
+                        }.show()
+                    }
                     5 -> syncCameraTime()
                     6 -> startActivity(Intent(this, AlertHistoryActivity::class.java))
                 }
@@ -273,8 +285,10 @@ class MainActivity : AppCompatActivity() {
 
     // ── OCR ──
     private fun startOcrLoop() {
-        val ch = channels.getOrNull(ocrChannelIndex) ?: return
-        val url = "${ch.httpBase}/ISAPI/Streaming/channels/101/picture"
+        // OCR은 항상 CH4 고정 IP (카메라/NVR 모드 무관)
+        val ocrUrl  = "http://192.168.0.104/ISAPI/Streaming/channels/101/picture"
+        val ocrUser = "admin"
+        val ocrPass = "1q2w3e4r@"
         b.osdOverlay.visibility = View.VISIBLE
         b.tvOcrBadge.visibility = View.VISIBLE
         ocrEngine?.release()
@@ -283,10 +297,9 @@ class MainActivity : AppCompatActivity() {
                 if (result.windSpeed != null) { lastWind = result.windSpeed; lastWindAlert = result.windAlert }
                 if (result.weight   != null) { lastWeight = result.weight;  lastWeightAlert = result.weightAlert }
                 updateOsd()
-                // CH1 카메라 POS OSD 전송 (0.5초마다)
                 sendPosOsd(lastWind, lastWeight)
             }
-            engine.startHttpLoop(url, ch.username, ch.password)
+            engine.startHttpLoop(ocrUrl, ocrUser, ocrPass)
         }
     }
 
