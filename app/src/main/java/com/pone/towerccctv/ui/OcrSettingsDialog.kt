@@ -90,10 +90,6 @@ class OcrSettingsDialog(
         }
         layout.addView(divider())
 
-        layout.addView(label("🌬  풍속 한계 (m/s)"))
-        val windInput = input(OcrSettings.getWindLimit(context).toString(), "예: 15.0")
-        layout.addView(windInput)
-
         layout.addView(label("⚖  중량 한계 (ton)"))
         val weightInput = input(OcrSettings.getWeightLimit(context).toString(), "예: 3.0")
         layout.addView(weightInput)
@@ -153,7 +149,6 @@ class OcrSettingsDialog(
             dialog.dismiss()
             // 설정값 먼저 저장
             OcrSettings.setOcrEnabled(context, ocrSwitch.isChecked)
-            windInput.text.toString().toFloatOrNull()?.let { OcrSettings.setWindLimit(context, it) }
             weightInput.text.toString().toFloatOrNull()?.let { OcrSettings.setWeightLimit(context, it) }
             OcrSettings.setWeightTon(context, btnTon.isChecked)
             showRoiScreen(target.first, target.second, target.third)
@@ -182,7 +177,6 @@ class OcrSettingsDialog(
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             setOnClickListener {
                 OcrSettings.setOcrEnabled(context, ocrSwitch.isChecked)
-                windInput.text.toString().toFloatOrNull()?.let { OcrSettings.setWindLimit(context, it) }
                 weightInput.text.toString().toFloatOrNull()?.let { OcrSettings.setWeightLimit(context, it) }
                 OcrSettings.setWeightTon(context, btnTon.isChecked)
                 Toast.makeText(context, "설정 저장됨", Toast.LENGTH_SHORT).show()
@@ -309,14 +303,6 @@ class OcrSettingsDialog(
             }.start()
         }
 
-        val btnWind = makeBtn("🌬 풍속", "#1A3A8F") {
-            roiView.currentMode = RoiOverlayView.RoiMode.WIND
-            roiView.onRoiSet = { _, roi ->
-                OcrSettings.setWindRoi(context, roi)
-                Toast.makeText(context, "풍속 ROI 저장됨", Toast.LENGTH_SHORT).show()
-            }
-            tvGuide.text = "🌬 풍속 영역을 드래그하세요"
-        }
         val btnWeight = makeBtn("⚖ 중량", "#8F4A00") {
             roiView.currentMode = RoiOverlayView.RoiMode.WEIGHT
             roiView.onRoiSet = { _, roi ->
@@ -326,8 +312,7 @@ class OcrSettingsDialog(
             tvGuide.text = "⚖ 중량 영역을 드래그하세요"
         }
         val btnReset = makeBtn("↺ 초기화", "#4A4A00") {
-            OcrSettings.setWindRoi(context,   OcrSettings.Roi(0.0f, 0.0f, 1.0f, 0.5f))
-            OcrSettings.setWeightRoi(context, OcrSettings.Roi(0.0f, 0.5f, 1.0f, 0.5f))
+            OcrSettings.setWeightRoi(context, OcrSettings.Roi(0.0f, 0.0f, 1.0f, 1.0f))
             roiView.loadSavedRois(context)
             Toast.makeText(context, "ROI 초기화됨 (전체화면)", Toast.LENGTH_SHORT).show()
         }
@@ -338,7 +323,7 @@ class OcrSettingsDialog(
             Toast.makeText(context, "ROI 설정 완료!", Toast.LENGTH_SHORT).show()
         }
 
-        btnBar.addView(btnWind); btnBar.addView(btnWeight)
+        btnBar.addView(btnWeight)
         btnBar.addView(btnReset); btnBar.addView(btnRefresh); btnBar.addView(btnDone)
         root.addView(btnBar)
 

@@ -89,7 +89,6 @@ class PlayerActivity : AppCompatActivity() {
         setStatus("연결 중...", "#FFB300")
 
         val ocrOn = OcrSettings.isOcrEnabled(this)
-        b.osdWindPlayer.visibility   = if (ocrOn) View.VISIBLE else View.GONE
         b.osdWeightPlayer.visibility = if (ocrOn) View.VISIBLE else View.GONE
 
         // 스냅샷 배경
@@ -145,19 +144,14 @@ class PlayerActivity : AppCompatActivity() {
 
     // ── OSD 갱신 (SharedPreferences에서 읽기) ──
     fun refreshOsd() {
-        val wind        = OcrSettings.getLatestWind(this)
         val weight      = OcrSettings.getLatestWeight(this)
-        val windAlert   = OcrSettings.isLatestWindAlert(this)
         val weightAlert = OcrSettings.isLatestWeightAlert(this)
         val isTon       = OcrSettings.isWeightTon(this)
 
-        b.osdWindPlayer.text = if (wind != null) "풍속: %.1f m/s".format(wind) else "풍속: --"
         b.osdWeightPlayer.text = if (weight != null) {
             if (isTon) "중량: %.2f t".format(weight) else "중량: %.2f kg".format(weight)
         } else "중량: --"
 
-        b.osdWindPlayer.setTextColor(
-            if (windAlert) Color.parseColor("#FF4444") else Color.WHITE)
         b.osdWeightPlayer.setTextColor(
             if (weightAlert) Color.parseColor("#FF4444") else Color.WHITE)
     }

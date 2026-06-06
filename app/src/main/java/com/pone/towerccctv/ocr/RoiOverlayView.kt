@@ -7,7 +7,7 @@ import android.view.View
 
 class RoiOverlayView(context: Context) : View(context) {
 
-    enum class RoiMode { WIND, WEIGHT, NONE }
+    enum class RoiMode { WEIGHT, NONE }
 
     var currentMode = RoiMode.NONE
     var onRoiSet: ((mode: RoiMode, roi: OcrSettings.Roi) -> Unit)? = null
@@ -20,19 +20,11 @@ class RoiOverlayView(context: Context) : View(context) {
     private var endX = 0f;   private var endY = 0f
     private var drawing = false
 
-    private var windRect: RectF? = null
     private var weightRect: RectF? = null
 
-    private val paintWind = Paint().apply {
-        style = Paint.Style.STROKE; strokeWidth = 5f
-        color = Color.parseColor("#2979FF")
-    }
     private val paintWeight = Paint().apply {
         style = Paint.Style.STROKE; strokeWidth = 5f
         color = Color.parseColor("#FF9800")
-    }
-    private val paintFillWind = Paint().apply {
-        style = Paint.Style.FILL; color = Color.parseColor("#552979FF")
     }
     private val paintFillWeight = Paint().apply {
         style = Paint.Style.FILL; color = Color.parseColor("#55FF9800")
@@ -48,11 +40,6 @@ class RoiOverlayView(context: Context) : View(context) {
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        windRect?.let {
-            canvas.drawRect(it, paintFillWind)
-            canvas.drawRect(it, paintWind)
-            canvas.drawText("🌬 풍속", it.left + 10, it.top + 50, paintText)
-        }
         weightRect?.let {
             canvas.drawRect(it, paintFillWeight)
             canvas.drawRect(it, paintWeight)
@@ -95,16 +82,9 @@ class RoiOverlayView(context: Context) : View(context) {
         android.util.Log.d("ROI", "저장: x=$x y=$y w=$w h=$h (뷰 ${width}x${height})")
 
         val roi = OcrSettings.Roi(x, y, w, h)
-        when (currentMode) {
-            RoiMode.WIND -> {
-                windRect = RectF(minOf(startX,endX), minOf(startY,endY),
-                                 maxOf(startX,endX), maxOf(startY,endY))
-            }
-            RoiMode.WEIGHT -> {
-                weightRect = RectF(minOf(startX,endX), minOf(startY,endY),
-                                   maxOf(startX,endX), maxOf(startY,endY))
-            }
-            else -> {}
+        if (currentMode == RoiMode.WEIGHT) {
+            weightRect = RectF(minOf(startX,endX), minOf(startY,endY),
+                               maxOf(startX,endX), maxOf(startY,endY))
         }
         onRoiSet?.invoke(currentMode, roi)
     }
@@ -112,9 +92,6 @@ class RoiOverlayView(context: Context) : View(context) {
     fun loadSavedRois(context: Context) {
         post {
             if (width == 0 || height == 0) return@post
-            val wr = OcrSettings.getWindRoi(context)
-            windRect = RectF(wr.x*width, wr.y*height,
-                (wr.x+wr.w)*width, (wr.y+wr.h)*height)
             val gr = OcrSettings.getWeightRoi(context)
             weightRect = RectF(gr.x*width, gr.y*height,
                 (gr.x+gr.w)*width, (gr.y+gr.h)*height)

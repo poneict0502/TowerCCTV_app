@@ -88,7 +88,7 @@
                         android:textSize="10sp" android:textStyle="bold"
                         android:background="#1a2d40" android:paddingStart="4dp" android:paddingEnd="4dp"/>
                 </LinearLayout>
-                <!-- CH1 OSD: 풍속/중량 실시간 표시 -->
+                <!-- CH1 OSD: 중량 실시간 표시 -->
                 <LinearLayout android:id="@+id/osdOverlay"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:layout_gravity="top|end"
@@ -98,15 +98,10 @@
                     android:paddingStart="10dp" android:paddingEnd="10dp"
                     android:paddingTop="6dp" android:paddingBottom="6dp"
                     android:visibility="gone">
-                    <TextView android:id="@+id/osdWind"
-                        android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="🌬 풍속: --"
-                        android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"/>
                     <TextView android:id="@+id/osdWeight"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:text="⚖ 중량: --"
-                        android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"
-                        android:layout_marginTop="2dp"/>
+                        android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"/>
                 </LinearLayout>
                 <!-- 복귀 시 스냅샷 표시 (블랙 방지) -->
                 <ImageView android:id="@+id/snapOverlay0"

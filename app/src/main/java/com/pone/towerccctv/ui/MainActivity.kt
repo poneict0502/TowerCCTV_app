@@ -68,9 +68,7 @@ class MainActivity : AppCompatActivity() {
     private var ocrChannelIndex = -1
     private var lastAlertTime = 0L
     private val ALERT_INTERVAL = 10_000L
-    private var lastWind: Float? = null
     private var lastWeight: Float? = null
-    private var lastWindAlert = false
     private var lastWeightAlert = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,6 +103,7 @@ class MainActivity : AppCompatActivity() {
             popup.menu.add(0, 1, 0, "📋  장치 관리")
             popup.menu.add(0, 2, 1, "⚡  기본 장치 자동 등록")
             popup.menu.add(0, 3, 2, "📡  OCR / 계측 설정")
+            popup.menu.add(0, 7, 3, "📸  OCR 캡처(30초 저장)")
             popup.menu.add(0, 5, 4, "🕐  카메라 시간 동기화")
             popup.menu.add(0, 6, 5, "📊  경보 이력 조회")
             popup.setOnMenuItemClickListener { item ->
@@ -122,14 +121,24 @@ class MainActivity : AppCompatActivity() {
                                 sendEmptyPosOsd()
                                 b.osdOverlay.visibility = View.GONE
                                 b.tvOcrBadge.visibility = View.GONE
-                                lastWind = null; lastWeight = null
-                                lastWindAlert = false; lastWeightAlert = false
+                                lastWeight = null
+                                lastWeightAlert = false
                                 OcrSettings.clearLatest(this)
                             }
                         }.show()
                     }
                     5 -> syncCameraTime()
                     6 -> startActivity(Intent(this, AlertHistoryActivity::class.java))
+                    7 -> {
+                        if (ocrEngine != null && OcrSettings.isOcrEnabled(this)) {
+                            ocrEngine?.startDebugCapture()
+                            Toast.makeText(this,
+                                "OCR 캡처 30초 저장 시작 (다운로드/AIVION/ocr)",
+                                Toast.LENGTH_LONG).show()
+                        } else {
+                            Toast.makeText(this, "먼저 OCR를 켜주세요", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
                 true
             }
@@ -283,9 +292,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun startOcrLoop() {
         // ★ 시작 시 모든 OCR 상태 초기화 (이전 값/경보 잔재 제거)
-        lastWind        = null
         lastWeight      = null
-        lastWindAlert   = false
         lastWeightAlert = false
         lastAlertTime   = 0L
         com.pone.towerccctv.ocr.OcrSettings.clearLatest(this)
@@ -310,12 +317,10 @@ class MainActivity : AppCompatActivity() {
         ocrEngine = OcrEngine(this).also { engine ->
             engine.onResult = { result ->
                 // ★ null도 그대로 반영 (이전 값 유지 금지)
-                lastWind        = result.windSpeed
                 lastWeight      = result.weight
-                lastWindAlert   = result.windAlert
                 lastWeightAlert = result.weightAlert
                 updateOsd()
-                sendPosOsd(lastWind, lastWeight)
+                sendPosOsd(lastWeight)
             }
             engine.startHttpLoop(ocrUrl, ocrUser, ocrPass)
         }
@@ -323,14 +328,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateOsd() {
         val isTon = OcrSettings.isWeightTon(this)
-        b.osdWind.text   = if (lastWind   != null) "🌬  %.1f m/s".format(lastWind)   else "🌬  --"
         b.osdWeight.text = if (lastWeight != null) {
             if (isTon) "⚖  %.2f t".format(lastWeight) else "⚖  %.2f kg".format(lastWeight)
         } else "⚖  --"
-        b.osdWind.setTextColor(if (lastWindAlert)   Color.parseColor("#FF4444") else Color.WHITE)
         b.osdWeight.setTextColor(if (lastWeightAlert) Color.parseColor("#FF4444") else Color.WHITE)
 
-        if (lastWindAlert || lastWeightAlert) {
+        if (lastWeightAlert) {
             val now = System.currentTimeMillis()
             if (now - lastAlertTime > ALERT_INTERVAL) {
                 lastAlertTime = now
@@ -338,23 +341,18 @@ class MainActivity : AppCompatActivity() {
                 alertDb.insert(AlertRecord(
                     dateTime    = sdf.format(java.util.Date()),
                     weight      = lastWeight,
-                    windSpeed   = lastWind,
-                    weightAlert = lastWeightAlert,
-                    windAlert   = lastWindAlert
+                    weightAlert = lastWeightAlert
                 ))
                 b.osdOverlay.setBackgroundColor(Color.parseColor("#DD880000"))
                 handler.postDelayed({ b.osdOverlay.setBackgroundColor(Color.parseColor("#DD000000")) }, 3000L)
-                val msg = buildString {
-                    if (lastWindAlert && lastWind != null) append("🚨 풍속 초과: %.1f m/s\n".format(lastWind))
-                    if (lastWeightAlert && lastWeight != null) append("🚨 중량 초과: %.2f t".format(lastWeight))
-                }
-                Toast.makeText(this, msg.trim(), Toast.LENGTH_LONG).show()
-                playAlertSound(lastWindAlert, lastWeightAlert)
+                val msg = if (lastWeight != null) "🚨 중량 초과: %.2f t".format(lastWeight) else "🚨 중량 초과"
+                Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+                playAlertSound()
             }
         }
     }
 
-    private fun playAlertSound(windAlert: Boolean, weightAlert: Boolean) {
+    private fun playAlertSound() {
         try {
             val tg = android.media.ToneGenerator(android.media.AudioManager.STREAM_ALARM, 100)
             tg.startTone(android.media.ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 300)
@@ -366,15 +364,7 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {}
 
         handler.postDelayed({
-            val msg = when {
-                weightAlert && windAlert -> "중량 초과. 풍속 초과"
-                weightAlert -> "중량 초과. 중량 초과"
-                windAlert   -> "풍속 초과. 풍속 초과"
-                else -> ""
-            }
-            if (msg.isNotEmpty()) {
-                tts?.speak(msg, TextToSpeech.QUEUE_FLUSH, null, "alert")
-            }
+            tts?.speak("중량 초과. 중량 초과", TextToSpeech.QUEUE_FLUSH, null, "alert")
         }, 1200L)
     }
 
@@ -495,13 +485,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun sendPosOsd(wind: Float?, weight: Float?) {
+    private fun sendPosOsd(weight: Float?) {
         val isTon = OcrSettings.isWeightTon(this)
-        val windStr   = wind?.let { "풍속 %.1f m/s".format(it) } ?: "풍속 --"
         val weightStr = weight?.let {
             if (isTon) "중량 %.2f t".format(it) else "중량 %.2f kg".format(it)
         } ?: "중량 --"
-        val text = "$weightStr   $windStr"
+        // ★ 갱신 시각을 함께 표기 → 앱이 끊기면 시각이 멈춰 stale 여부를 식별 가능
+        //   (카메라 자체 시계와 비교. 네트워크 복구/앱 재시작 시 자동 갱신)
+        val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.KOREA)
+            .format(java.util.Date())
+        val text = "$weightStr   $time"
 
         val xml = """<?xml version="1.0" encoding="UTF-8"?>
 <TextOverlayList>

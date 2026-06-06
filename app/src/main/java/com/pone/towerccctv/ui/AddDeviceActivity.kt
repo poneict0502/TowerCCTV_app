@@ -175,7 +175,8 @@ class AddDeviceActivity : AppCompatActivity() {
         val devices = DeviceStore.load(this)
 
         val newDev = Device(
-            id           = editId ?: System.currentTimeMillis().toString(),
+            // ★ 신규 ID도 UUID로 생성 (currentTimeMillis는 동시 추가 시 충돌 → 다른 채널 오수정 위험)
+            id           = editId ?: java.util.UUID.randomUUID().toString(),
             name         = name,
             type         = devType,
             ip           = ip,

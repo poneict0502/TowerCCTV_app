@@ -6,8 +6,10 @@
         android:maxSdkVersion="28"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
 
     <application
+        android:name=".TowerApp"
         android:allowBackup="false"
         android:label="TowerCCTV"
         android:icon="@mipmap/ic_launcher"

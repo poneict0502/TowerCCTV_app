@@ -120,7 +120,6 @@ class AlertHistoryActivity : AppCompatActivity() {
         }
         addView(cell("일시", 2.5f))
         addView(cell("중량(t)", 1f))
-        addView(cell("풍속(m/s)", 1f))
         addView(cell("경보유형", 1.5f))
     }
 
@@ -130,7 +129,7 @@ class AlertHistoryActivity : AppCompatActivity() {
         val row = LinearLayout(this@AlertHistoryActivity).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(12, 12, 12, 12)
-            val isAlert = r.weightAlert || r.windAlert
+            val isAlert = r.weightAlert
             setBackgroundColor(
                 if (isAlert) Color.parseColor("#1A0A0A") else Color.parseColor("#12181E")
             )
@@ -145,15 +144,10 @@ class AlertHistoryActivity : AppCompatActivity() {
                     LinearLayout.LayoutParams.WRAP_CONTENT, weight)
             }
 
-        val alertColor = when {
-            r.weightAlert && r.windAlert -> "#FF6666"
-            r.weightAlert || r.windAlert -> "#FFAA44"
-            else -> "#44BB66"
-        }
+        val alertColor = if (r.weightAlert) "#FF6666" else "#44BB66"
 
         row.addView(cell(r.dateTime, 2.5f, "#AABBCC"))
         row.addView(cell(r.weight?.let { "%.2f".format(it) } ?: "--", 1f))
-        row.addView(cell(r.windSpeed?.let { "%.1f".format(it) } ?: "--", 1f))
         row.addView(cell(r.alertType, 1.5f, alertColor))
 
         val div = android.view.View(this@AlertHistoryActivity).apply {
