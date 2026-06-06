@@ -23,7 +23,7 @@ object OcrSettings {
     // 한계치
     fun getWindLimit(ctx: Context): Float =
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getFloat("wind_limit", 15.0f)  // 기본 15 m/s
+            .getFloat("wind_limit", 15.0f)
 
     fun setWindLimit(ctx: Context, v: Float) =
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -31,7 +31,7 @@ object OcrSettings {
 
     fun getWeightLimit(ctx: Context): Float =
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getFloat("weight_limit", 3.0f)  // 기본 3.0 ton
+            .getFloat("weight_limit", 3.0f)
 
     fun setWeightLimit(ctx: Context, v: Float) =
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -40,7 +40,7 @@ object OcrSettings {
     // 중량 단위 (ton/kg)
     fun isWeightTon(ctx: Context) =
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getBoolean("weight_is_ton", true)  // 기본 ton
+            .getBoolean("weight_is_ton", true)
 
     fun setWeightTon(ctx: Context, isTon: Boolean) =
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -86,6 +86,17 @@ object OcrSettings {
             .putBoolean("latest_wind_alert",   windAlert)
             .putBoolean("latest_weight_alert", weightAlert)
             .putLong("latest_time", System.currentTimeMillis())
+            .apply()
+    }
+
+    // ★ 최신 OCR 값 완전 초기화 (OCR 시작/정지/재설정 시 호출)
+    fun clearLatest(ctx: Context) {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putFloat("latest_wind",   -1f)
+            .putFloat("latest_weight", -1f)
+            .putBoolean("latest_wind_alert",   false)
+            .putBoolean("latest_weight_alert", false)
+            .putLong("latest_time", 0L)
             .apply()
     }
 

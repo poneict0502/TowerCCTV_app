@@ -47,10 +47,12 @@ class OcrEngine(private val context: Context) {
     private var processing = false
     private var httpClient: OkHttpClient? = null
 
-
+    // 폴링 주기 - 원본 동작 유지 (스냅샷과 RTSP는 독립이라 충돌 없음)
+    private val POLL_INTERVAL_MS = 500L
 
     fun startHttpLoop(snapshotUrl: String, username: String, password: String) {
         stopLoop()
+        Log.d("OCR", "시작: $snapshotUrl (user=$username)")
         val authCache = ConcurrentHashMap<String, CachingAuthenticator>()
         val credentials = Credentials(username, password)
         val authenticator = DispatchingAuthenticator.Builder()
@@ -58,23 +60,40 @@ class OcrEngine(private val context: Context) {
             .with("basic", BasicAuthenticator(credentials))
             .build()
         httpClient = OkHttpClient.Builder()
-            .connectTimeout(3, TimeUnit.SECONDS)
-            .readTimeout(3, TimeUnit.SECONDS)
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(5, TimeUnit.SECONDS)
             .authenticator(CachingAuthenticatorDecorator(authenticator, authCache))
             .addInterceptor(AuthenticationCacheInterceptor(authCache))
             .build()
+
+        // 연속 실패 카운트 - 5회 실패 시 자동 정지 (인증오류 무한반복 방지)
+        var failStreak = 0
 
         job = scope.launch {
             while (isActive) {
                 if (!processing) {
                     try {
                         val bmp = fetchSnapshot(snapshotUrl)
-                        if (bmp != null) processOcr(bmp)
+                        if (bmp != null) {
+                            failStreak = 0
+                            processOcr(bmp)
+                        } else {
+                            failStreak++
+                            if (failStreak >= 5) {
+                                Log.w("OCR", "연속 실패 ${failStreak}회 - 자동 정지")
+                                break
+                            }
+                        }
                     } catch (e: Exception) {
                         Log.e("OCR", "오류: ${e.message}")
+                        failStreak++
+                        if (failStreak >= 5) {
+                            Log.w("OCR", "연속 실패 ${failStreak}회 - 자동 정지")
+                            break
+                        }
                     }
                 }
-                delay(500L)
+                delay(POLL_INTERVAL_MS)
             }
         }
     }
@@ -124,7 +143,6 @@ class OcrEngine(private val context: Context) {
             mainHandler.post { onResult?.invoke(result) }
         }
 
-        // 중량: 매번 인식
         recognizer.process(InputImage.fromBitmap(weightBmp, 0))
             .addOnSuccessListener { txt ->
                 rawWeight = txt.text.replace("\n", " ").trim()
@@ -133,7 +151,6 @@ class OcrEngine(private val context: Context) {
             }
             .addOnFailureListener { pending--; check() }
 
-        // 풍속: 매번 인식
         recognizer.process(InputImage.fromBitmap(windBmp, 0))
             .addOnSuccessListener { txt ->
                 rawWind = txt.text.replace("\n", " ").trim()

@@ -57,7 +57,6 @@ class MainActivity : AppCompatActivity() {
             val now = java.util.Calendar.getInstance()
             val h = "%02d".format(now.get(java.util.Calendar.HOUR_OF_DAY))
             val m = "%02d".format(now.get(java.util.Calendar.MINUTE))
-            val s = "%02d".format(now.get(java.util.Calendar.SECOND))
             if (::b.isInitialized) b.tvClock.text = "$h:$m"
             handler.postDelayed(this, 1000L)
         }
@@ -79,7 +78,6 @@ class MainActivity : AppCompatActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
-        // 전체화면 몰입 모드 (setContentView 이후 호출)
         setFullscreen()
         handler.post(clockRunnable)
         alertDb = AlertDatabase(this)
@@ -90,10 +88,8 @@ class MainActivity : AppCompatActivity() {
         ipList    = listOf(b.ip0,  b.ip1,  b.ip2,  b.ip3)
         touchList = listOf(b.touch0, b.touch1, b.touch2, b.touch3)
 
-        // LibVLC 한 번만 생성
         libVLC = LibVLC(this, arrayListOf("--no-audio", "--rtsp-tcp", "--network-caching=300"))
 
-        // TTS 초기화
         tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 val result = tts?.setLanguage(java.util.Locale.KOREAN)
@@ -102,9 +98,6 @@ class MainActivity : AppCompatActivity() {
                     tts?.setLanguage(java.util.Locale.getDefault())
                 }
                 tts?.setSpeechRate(0.85f)
-                android.util.Log.d("TTS", "초기화 완료")
-            } else {
-                android.util.Log.e("TTS", "초기화 실패: $status")
             }
         }
         b.btnSettings.setOnClickListener { view ->
@@ -122,7 +115,17 @@ class MainActivity : AppCompatActivity() {
                         ocrEngine?.stopLoop()
                         OcrSettingsDialog(this) {
                             ocrEngine?.release(); ocrEngine = null
-                            if (OcrSettings.isOcrEnabled(this)) startOcrLoop()
+                            if (OcrSettings.isOcrEnabled(this)) {
+                                startOcrLoop()
+                            } else {
+                                // OCR OFF: 카메라 OSD 비우고 화면 OSD 숨김
+                                sendEmptyPosOsd()
+                                b.osdOverlay.visibility = View.GONE
+                                b.tvOcrBadge.visibility = View.GONE
+                                lastWind = null; lastWeight = null
+                                lastWindAlert = false; lastWeightAlert = false
+                                OcrSettings.clearLatest(this)
+                            }
                         }.show()
                     }
                     5 -> syncCameraTime()
@@ -153,23 +156,27 @@ class MainActivity : AppCompatActivity() {
         } else {
             @Suppress("DEPRECATION")
             window.decorView.systemUiVisibility = (
-                    android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
-                            android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                            android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
-                            android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
-                            android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                            android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    View.SYSTEM_UI_FLAG_FULLSCREEN or
+                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                            View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                     )
         }
     }
 
     override fun onStop() {
         super.onStop()
+        // 앱이 백그라운드로 가도 OSD 정리 (안전장치)
+        try { sendEmptyPosOsd() } catch (e: Exception) {}
         stopAll()
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        // ★ 카메라 OSD 텍스트 제거 (잘못된 값이 영상에 박히는 것 방지)
+        try { sendEmptyPosOsd() } catch (e: Exception) {}
         stopAll()
         ocrEngine?.release(); ocrEngine = null
         handler.removeCallbacks(clockRunnable)
@@ -180,7 +187,6 @@ class MainActivity : AppCompatActivity() {
     private fun restartAll() { stopAll(); startAll() }
 
     private fun startAll() {
-        // 장치 로드
         val devices = DeviceStore.load(this).filter { it.enabled }
         channels = devices.flatMap { it.toChannels() }.take(4)
         ocrChannelIndex = channels.size - 1
@@ -206,31 +212,25 @@ class MainActivity : AppCompatActivity() {
             lblList[0].text = "⚙ 설정에서 장치를 등록해 주세요"
         }
 
-        // OCR
         if (OcrSettings.isOcrEnabled(this) && ocrChannelIndex >= 0) {
             startOcrLoop()
         }
     }
 
     private fun stopAll() {
-        // 재연결 취소
         for (i in 0 until 4) {
             reconnectJobs[i]?.let { handler.removeCallbacks(it) }
             reconnectJobs[i] = null
         }
-        // 스트림 정지
         for (i in 0 until 4) {
             players[i]?.stop()
             players[i]?.detachViews()
             players[i]?.release()
             players[i] = null
         }
-        // OCR은 백그라운드 유지 (단독모드에서도 SharedPreferences 업데이트)
-        // onDestroy에서만 완전 해제
     }
 
     private fun startStream(idx: Int, ch: Channel) {
-        // 기존 정리
         players[idx]?.stop()
         players[idx]?.detachViews()
         players[idx]?.release()
@@ -262,12 +262,10 @@ class MainActivity : AppCompatActivity() {
                     }
                     MediaPlayer.Event.Buffering -> setDot(idx, "yellow")
                     MediaPlayer.Event.EncounteredError -> {
-                        setDot(idx, "red")
-                        scheduleReconnect(idx, ch)
+                        setDot(idx, "red"); scheduleReconnect(idx, ch)
                     }
                     MediaPlayer.Event.EndReached -> {
-                        setDot(idx, "gray")
-                        scheduleReconnect(idx, ch)
+                        setDot(idx, "gray"); scheduleReconnect(idx, ch)
                     }
                 }
             }
@@ -283,19 +281,39 @@ class MainActivity : AppCompatActivity() {
         handler.postDelayed(job, 5000L)
     }
 
-    // ── OCR ──
     private fun startOcrLoop() {
-        // OCR은 항상 CH4 고정 IP (카메라/NVR 모드 무관)
-        val ocrUrl  = "http://192.168.0.104/ISAPI/Streaming/channels/101/picture"
-        val ocrUser = "admin"
-        val ocrPass = "1q2w3e4r@"
+        // ★ 시작 시 모든 OCR 상태 초기화 (이전 값/경보 잔재 제거)
+        lastWind        = null
+        lastWeight      = null
+        lastWindAlert   = false
+        lastWeightAlert = false
+        lastAlertTime   = 0L
+        com.pone.towerccctv.ocr.OcrSettings.clearLatest(this)
+
+        // ★ 등록된 마지막 카메라(OCR 대상 = CH4 관행)의 실제 인증정보 사용
+        // (하드코딩 비번 제거 - 자동등록 시 입력한 비번이 자동 적용됨)
+        val devs = DeviceStore.load(this).filter { it.enabled }
+        if (devs.isEmpty()) return
+        val dev = devs.last()
+        // 메인스트림(101) picture 사용 - ROI 설정 화면과 동일한 소스 (좌표 일치)
+        val ocrUrl  = "http://${dev.ip}:${dev.httpPort}/ISAPI/Streaming/channels/101/picture"
+        val ocrUser = dev.username
+        val ocrPass = dev.password
+
         b.osdOverlay.visibility = View.VISIBLE
         b.tvOcrBadge.visibility = View.VISIBLE
+        // 초기 상태로 OSD 표시 (-- 로 표시)
+        updateOsd()
+        // 카메라 OSD에 남아있을 수 있는 이전 텍스트도 클리어
+        sendEmptyPosOsd()
         ocrEngine?.release()
         ocrEngine = OcrEngine(this).also { engine ->
             engine.onResult = { result ->
-                if (result.windSpeed != null) { lastWind = result.windSpeed; lastWindAlert = result.windAlert }
-                if (result.weight   != null) { lastWeight = result.weight;  lastWeightAlert = result.weightAlert }
+                // ★ null도 그대로 반영 (이전 값 유지 금지)
+                lastWind        = result.windSpeed
+                lastWeight      = result.weight
+                lastWindAlert   = result.windAlert
+                lastWeightAlert = result.weightAlert
                 updateOsd()
                 sendPosOsd(lastWind, lastWeight)
             }
@@ -316,7 +334,6 @@ class MainActivity : AppCompatActivity() {
             val now = System.currentTimeMillis()
             if (now - lastAlertTime > ALERT_INTERVAL) {
                 lastAlertTime = now
-                // 경보 이력 저장
                 val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.KOREA)
                 alertDb.insert(AlertRecord(
                     dateTime    = sdf.format(java.util.Date()),
@@ -338,15 +355,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun playAlertSound(windAlert: Boolean, weightAlert: Boolean) {
-        // 삐삐삐 비프음
         try {
             val tg = android.media.ToneGenerator(android.media.AudioManager.STREAM_ALARM, 100)
             tg.startTone(android.media.ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 300)
             handler.postDelayed({ tg.startTone(android.media.ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 300) }, 400L)
-            handler.postDelayed({ tg.startTone(android.media.ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 300); handler.postDelayed({ tg.release() }, 400L) }, 800L)
+            handler.postDelayed({
+                tg.startTone(android.media.ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 300)
+                handler.postDelayed({ tg.release() }, 400L)
+            }, 800L)
         } catch (e: Exception) {}
 
-        // TTS 음성 안내 (비프음 후 1.2초 뒤)
         handler.postDelayed({
             val msg = when {
                 weightAlert && windAlert -> "중량 초과. 풍속 초과"
@@ -360,7 +378,6 @@ class MainActivity : AppCompatActivity() {
         }, 1200L)
     }
 
-    // ── PlayerActivity 전환 ──
     private fun openPlayer(index: Int) {
         val ch = channels.getOrNull(index) ?: return
         val bmp: Bitmap? = try {
@@ -408,9 +425,8 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-
     private fun syncCameraTime() {
-        val devices = DeviceStore.load(this).filter { it.enabled }  // 카메라 + NVR 모두
+        val devices = DeviceStore.load(this).filter { it.enabled }
         if (devices.isEmpty()) {
             Toast.makeText(this, "등록된 카메라가 없습니다", Toast.LENGTH_SHORT).show()
             return
@@ -425,7 +441,6 @@ class MainActivity : AppCompatActivity() {
         val min   = now.get(java.util.Calendar.MINUTE)
         val sec   = now.get(java.util.Calendar.SECOND)
 
-        // ISO 8601 형식 (Hikvision ISAPI)
         val timeXml = """<?xml version="1.0" encoding="UTF-8"?>
 <Time>
 <timeMode>manual</timeMode>
@@ -459,10 +474,8 @@ class MainActivity : AppCompatActivity() {
                         .url("http://${dev.ip}/ISAPI/System/time")
                         .put(body).build()
                     val resp = client.newCall(req).execute()
-                    android.util.Log.d("TimeSync", "${dev.ip} → ${resp.code}")
                     resp.code in 200..299
                 } catch (e: Exception) {
-                    android.util.Log.e("TimeSync", "${dev.ip} 실패: ${e.message}")
                     false
                 }
 
@@ -482,7 +495,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ── CH1 카메라 POS OSD 전송 ──
     private fun sendPosOsd(wind: Float?, weight: Float?) {
         val isTon = OcrSettings.isWeightTon(this)
         val windStr   = wind?.let { "풍속 %.1f m/s".format(it) } ?: "풍속 --"
@@ -502,9 +514,7 @@ class MainActivity : AppCompatActivity() {
   </TextOverlay>
 </TextOverlayList>"""
 
-        // CH1 카메라 정보
-        val ch1 = channels.firstOrNull { it.extractIp() == "192.168.0.101" }
-            ?: return
+        val ch1 = channels.firstOrNull() ?: return
 
         Thread {
             try {
@@ -526,36 +536,197 @@ class MainActivity : AppCompatActivity() {
                     .url("http://${ch1.extractIp()}/ISAPI/System/Video/inputs/channels/1/overlays/text")
                     .put(body).build()
                 val resp = client.newCall(req).execute()
-                android.util.Log.d("PosOSD", "CH1 → ${resp.code}")
                 resp.close()
-            } catch (e: Exception) {
-                android.util.Log.e("PosOSD", "오류: ${e.message}")
-            }
+            } catch (e: Exception) {}
         }.start()
     }
 
+    // ── 빈 OSD 송출 (텍스트 완전 제거, enabled=false) ──
+    private fun sendEmptyPosOsd() {
+        sendOverlayXml(text = "", enabled = false)
+    }
+
+    // ── 공통 OSD 송출 헬퍼 (sendEmptyPosOsd 가 호출) ──
+    private fun sendOverlayXml(text: String, enabled: Boolean) {
+        val xml = """<?xml version="1.0" encoding="UTF-8"?>
+<TextOverlayList>
+  <TextOverlay>
+    <id>1</id>
+    <enabled>$enabled</enabled>
+    <positionX>0</positionX>
+    <positionY>0</positionY>
+    <displayText>$text</displayText>
+  </TextOverlay>
+</TextOverlayList>"""
+        // 첫 번째 등록된 카메라(CH1)에 송출 - IP 변경 대응
+        val ch1 = channels.firstOrNull() ?: return
+        Thread {
+            try {
+                val authCache = java.util.concurrent.ConcurrentHashMap<String,
+                        com.burgstaller.okhttp.digest.CachingAuthenticator>()
+                val creds = com.burgstaller.okhttp.digest.Credentials(ch1.username, ch1.password)
+                val auth = com.burgstaller.okhttp.DispatchingAuthenticator.Builder()
+                    .with("digest", com.burgstaller.okhttp.digest.DigestAuthenticator(creds))
+                    .with("basic", com.burgstaller.okhttp.basic.BasicAuthenticator(creds))
+                    .build()
+                val client = okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
+                    .authenticator(com.burgstaller.okhttp.CachingAuthenticatorDecorator(auth, authCache))
+                    .addInterceptor(com.burgstaller.okhttp.AuthenticationCacheInterceptor(authCache))
+                    .build()
+                val body = okhttp3.RequestBody.create("application/xml".toMediaType(), xml)
+                val req = okhttp3.Request.Builder()
+                    .url("http://${ch1.extractIp()}/ISAPI/System/Video/inputs/channels/1/overlays/text")
+                    .put(body).build()
+                val resp = client.newCall(req).execute()
+                resp.close()
+            } catch (e: Exception) {}
+        }.start()
+    }
+
+    // ── 자동 등록 다이얼로그 (카메라 4대 / NVR 1대 선택) ──
     private fun showAutoRegisterDialog() {
         AlertDialog.Builder(this).setTitle("⚡ 기본 장치 자동 등록")
             .setItems(arrayOf("📷 카메라 4대 (101~104)", "📼 NVR 1대 (100)")) { _, w ->
-                if (w == 0) autoRegisterCameras() else autoRegisterNvr()
+                if (w == 0) showAutoRegisterCamerasDialog() else showAutoRegisterNvrDialog()
             }.setNegativeButton("취소", null).show()
     }
 
-    private fun autoRegisterCameras() {
+    // ── 카메라 4대 등록 입력 다이얼로그 ──
+    private fun showAutoRegisterCamerasDialog() {
+        val ctx = this
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 8)
+        }
+        fun lbl(t: String) = android.widget.TextView(this).apply {
+            text = t; setTextColor(Color.parseColor("#888888")); textSize = 12f
+            setPadding(0, 12, 0, 4)
+        }
+        fun input(default: String, hint: String): android.widget.EditText =
+            android.widget.EditText(this).apply {
+                setText(default); this.hint = hint
+                setTextColor(Color.WHITE); setHintTextColor(Color.parseColor("#555555"))
+                textSize = 14f
+                setBackgroundColor(Color.parseColor("#1E1E22"))
+                setPadding(20, 14, 20, 14)
+            }
+
+        container.addView(lbl("사용자명"))
+        val etUser = input("admin", "admin")
+        container.addView(etUser)
+
+        container.addView(lbl("비밀번호 (4대 공통)"))
+        val etPass = input("", "예: 1q2w3e4r@")
+        container.addView(etPass)
+
+        container.addView(lbl("시작 IP (자동으로 +1, +2, +3)"))
+        val etIp = input("192.168.0.101", "192.168.0.101")
+        container.addView(etIp)
+
+        container.addView(android.widget.TextView(this).apply {
+            text = "CH4는 PTZ 없음으로 등록됨\n등록 후 장치 관리에서 IP/이름 개별 변경 가능"
+            setTextColor(Color.parseColor("#556677")); textSize = 10f
+            setPadding(0, 16, 0, 0)
+        })
+
+        AlertDialog.Builder(this).setTitle("📷 카메라 4대 자동 등록")
+            .setView(container)
+            .setPositiveButton("등록") { _, _ ->
+                val user    = etUser.text.toString().trim().ifEmpty { "admin" }
+                val pass    = etPass.text.toString()
+                val startIp = etIp.text.toString().trim().ifEmpty { "192.168.0.101" }
+                autoRegisterCameras(user, pass, startIp)
+            }
+            .setNegativeButton("취소", null).show()
+    }
+
+    // ── NVR 1대 등록 입력 다이얼로그 ──
+    private fun showAutoRegisterNvrDialog() {
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 8)
+        }
+        fun lbl(t: String) = android.widget.TextView(this).apply {
+            text = t; setTextColor(Color.parseColor("#888888")); textSize = 12f
+            setPadding(0, 12, 0, 4)
+        }
+        fun input(default: String, hint: String, numeric: Boolean = false): android.widget.EditText =
+            android.widget.EditText(this).apply {
+                setText(default); this.hint = hint
+                setTextColor(Color.WHITE); setHintTextColor(Color.parseColor("#555555"))
+                textSize = 14f
+                if (numeric) inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                setBackgroundColor(Color.parseColor("#1E1E22"))
+                setPadding(20, 14, 20, 14)
+            }
+
+        container.addView(lbl("사용자명"))
+        val etUser = input("admin", "admin")
+        container.addView(etUser)
+
+        container.addView(lbl("비밀번호"))
+        val etPass = input("", "예: 1q2w3e4r@")
+        container.addView(etPass)
+
+        container.addView(lbl("NVR IP"))
+        val etIp = input("192.168.0.100", "192.168.0.100")
+        container.addView(etIp)
+
+        container.addView(lbl("채널 수"))
+        val etChCount = input("4", "4", numeric = true)
+        container.addView(etChCount)
+
+        container.addView(android.widget.TextView(this).apply {
+            text = "등록 후 장치 관리에서 변경 가능"
+            setTextColor(Color.parseColor("#556677")); textSize = 10f
+            setPadding(0, 16, 0, 0)
+        })
+
+        AlertDialog.Builder(this).setTitle("📼 NVR 1대 자동 등록")
+            .setView(container)
+            .setPositiveButton("등록") { _, _ ->
+                val user    = etUser.text.toString().trim().ifEmpty { "admin" }
+                val pass    = etPass.text.toString()
+                val ip      = etIp.text.toString().trim().ifEmpty { "192.168.0.100" }
+                val chCount = etChCount.text.toString().toIntOrNull() ?: 4
+                autoRegisterNvr(user, pass, ip, chCount)
+            }
+            .setNegativeButton("취소", null).show()
+    }
+
+    private fun autoRegisterCameras(user: String, pass: String, startIp: String) {
+        val parts = startIp.split(".")
+        if (parts.size != 4 || parts[3].toIntOrNull() == null) {
+            Toast.makeText(this, "IP 형식이 올바르지 않습니다", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val prefix   = "${parts[0]}.${parts[1]}.${parts[2]}."
+        val baseLast = parts[3].toInt()
+
         DeviceStore.save(this, listOf(
-            com.pone.towerccctv.model.Device(name="CH1", type=DeviceType.CAMERA, ip="192.168.0.101", username="admin", password="1234qwer@", hasPtz=true),
-            com.pone.towerccctv.model.Device(name="CH2", type=DeviceType.CAMERA, ip="192.168.0.102", username="admin", password="1q2w3e4r@", hasPtz=true),
-            com.pone.towerccctv.model.Device(name="CH3", type=DeviceType.CAMERA, ip="192.168.0.103", username="admin", password="1q2w3e4r@", hasPtz=true),
-            com.pone.towerccctv.model.Device(name="CH4", type=DeviceType.CAMERA, ip="192.168.0.104", username="admin", password="1q2w3e4r@", hasPtz=false)
+            com.pone.towerccctv.model.Device(
+                name="CH1", type=DeviceType.CAMERA, ip="$prefix${baseLast}",
+                username=user, password=pass, hasPtz=true),
+            com.pone.towerccctv.model.Device(
+                name="CH2", type=DeviceType.CAMERA, ip="$prefix${baseLast+1}",
+                username=user, password=pass, hasPtz=true),
+            com.pone.towerccctv.model.Device(
+                name="CH3", type=DeviceType.CAMERA, ip="$prefix${baseLast+2}",
+                username=user, password=pass, hasPtz=true),
+            com.pone.towerccctv.model.Device(
+                name="CH4", type=DeviceType.CAMERA, ip="$prefix${baseLast+3}",
+                username=user, password=pass, hasPtz=false)
         ))
         Toast.makeText(this, "카메라 4대 등록 완료!", Toast.LENGTH_SHORT).show()
         restartAll()
     }
 
-    private fun autoRegisterNvr() {
+    private fun autoRegisterNvr(user: String, pass: String, ip: String, chCount: Int) {
         DeviceStore.save(this, listOf(com.pone.towerccctv.model.Device(
-            name="NVR", type=DeviceType.NVR, ip="192.168.0.100",
-            username="admin", password="1q2w3e4r@", channelCount=4, hasPtz=true)))
+            name="NVR", type=DeviceType.NVR, ip=ip,
+            username=user, password=pass, channelCount=chCount, hasPtz=true)))
         Toast.makeText(this, "NVR 등록 완료!", Toast.LENGTH_SHORT).show()
         restartAll()
     }

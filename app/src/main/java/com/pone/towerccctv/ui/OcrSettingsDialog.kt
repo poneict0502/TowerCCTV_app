@@ -2,7 +2,6 @@ package com.pone.towerccctv.ui
 
 import android.app.Dialog
 import android.content.Context
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.view.ViewGroup
@@ -21,6 +20,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import com.pone.towerccctv.model.DeviceStore
 import com.pone.towerccctv.ocr.OcrSettings
 import com.pone.towerccctv.ocr.RoiOverlayView
 
@@ -28,9 +28,16 @@ class OcrSettingsDialog(
     private val context: Context,
     private val onChanged: (() -> Unit)? = null
 ) {
-    private val snapUrl = "http://192.168.0.104/ISAPI/Streaming/channels/101/picture"
-    private val snapUser = "admin"
-    private val snapPass = "1q2w3e4r@"
+    // ★ 등록된 마지막 채널(보통 CH4 = OCR 대상)의 인증정보를 동적으로 사용
+    private fun resolveOcrTarget(): Triple<String, String, String>? {
+        val devs = DeviceStore.load(context).filter { it.enabled }
+        if (devs.isEmpty()) return null
+        // OCR 대상 카메라 = 등록된 마지막 카메라 (관행)
+        val dev = devs.last()
+        // 서브 스트림(102) picture - 부하 감소 + 4분할과 다른 스트림으로 충돌 회피
+        val url = "http://${dev.ip}:${dev.httpPort}/ISAPI/Streaming/channels/101/picture"
+        return Triple(url, dev.username, dev.password)
+    }
 
     fun show() {
         val dialog = Dialog(context)
@@ -58,7 +65,7 @@ class OcrSettingsDialog(
             setBackgroundColor(Color.parseColor("#1E2530"))
             textSize = 16f; setPadding(16, 10, 16, 10)
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or
-                        android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
         }
 
         // OCR 모드 스위치
@@ -76,7 +83,6 @@ class OcrSettingsDialog(
         ocrRow.addView(ocrLabel); ocrRow.addView(ocrSwitch)
         layout.addView(ocrRow)
 
-        // 구분선
         fun divider() = View(context).apply {
             setBackgroundColor(Color.parseColor("#253545"))
             layoutParams = LinearLayout.LayoutParams(
@@ -84,7 +90,6 @@ class OcrSettingsDialog(
         }
         layout.addView(divider())
 
-        // 한계치
         layout.addView(label("🌬  풍속 한계 (m/s)"))
         val windInput = input(OcrSettings.getWindLimit(context).toString(), "예: 15.0")
         layout.addView(windInput)
@@ -118,14 +123,14 @@ class OcrSettingsDialog(
 
         layout.addView(divider())
 
-        // ── ROI 영역 설정 ──
+        // ROI 영역 설정
         layout.addView(TextView(context).apply {
             text = "📐  ROI 영역 설정"
-            setTextColor(Color.WHITE); textSize = 14f; 
+            setTextColor(Color.WHITE); textSize = 14f
             setPadding(0, 8, 0, 4)
         })
         layout.addView(TextView(context).apply {
-            text = "스냅샷 받기 → 드래그로 영역 지정"
+            text = "스냅샷 받기 → 드래그로 영역 지정\n(등록된 마지막 카메라의 스냅샷 사용)"
             setTextColor(Color.parseColor("#778899")); textSize = 11f
         })
 
@@ -139,14 +144,19 @@ class OcrSettingsDialog(
                 .also { it.topMargin = 8 }
         }
         btnRoi.setOnClickListener {
+            val target = resolveOcrTarget()
+            if (target == null) {
+                Toast.makeText(context, "등록된 카메라가 없습니다. 먼저 장치를 등록해 주세요.",
+                    Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
             dialog.dismiss()
             // 설정값 먼저 저장
             OcrSettings.setOcrEnabled(context, ocrSwitch.isChecked)
             windInput.text.toString().toFloatOrNull()?.let { OcrSettings.setWindLimit(context, it) }
             weightInput.text.toString().toFloatOrNull()?.let { OcrSettings.setWeightLimit(context, it) }
-            OcrSettings.setWeightTon(context, btnTon.currentTextColor == android.graphics.Color.WHITE)
-            // ROI 설정 화면 열기
-            showRoiScreen()
+            OcrSettings.setWeightTon(context, btnTon.isChecked)
+            showRoiScreen(target.first, target.second, target.third)
             onChanged?.invoke()
         }
         layout.addView(btnRoi)
@@ -174,7 +184,7 @@ class OcrSettingsDialog(
                 OcrSettings.setOcrEnabled(context, ocrSwitch.isChecked)
                 windInput.text.toString().toFloatOrNull()?.let { OcrSettings.setWindLimit(context, it) }
                 weightInput.text.toString().toFloatOrNull()?.let { OcrSettings.setWeightLimit(context, it) }
-                OcrSettings.setWeightTon(context, btnTon.currentTextColor == android.graphics.Color.WHITE)
+                OcrSettings.setWeightTon(context, btnTon.isChecked)
                 Toast.makeText(context, "설정 저장됨", Toast.LENGTH_SHORT).show()
                 onChanged?.invoke()
                 dialog.dismiss()
@@ -192,13 +202,12 @@ class OcrSettingsDialog(
     }
 
     // ── ROI 전체화면 설정 ──
-    private fun showRoiScreen() {
+    private fun showRoiScreen(snapUrl: String, snapUser: String, snapPass: String) {
         val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
         dialog.setCancelable(false)
 
         val root = android.widget.FrameLayout(context)
 
-        // 이미지 + ROI가 같은 컨테이너 안에서 동일 크기
         val imageContainer = android.widget.FrameLayout(context).apply {
             setBackgroundColor(Color.BLACK)
             layoutParams = android.widget.FrameLayout.LayoutParams(
@@ -208,16 +217,14 @@ class OcrSettingsDialog(
         }
         root.addView(imageContainer)
 
-        // 스냅샷 이미지 - 컨테이너 꽉 채움
         val imgView = ImageView(context).apply {
-            scaleType = ImageView.ScaleType.FIT_XY  // 여백 없이 꽉 채움
+            scaleType = ImageView.ScaleType.FIT_XY
             layoutParams = android.widget.FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT)
         }
         imageContainer.addView(imgView)
 
-        // ROI 오버레이 - 이미지와 동일 컨테이너 (크기 100% 일치)
         val roiView = RoiOverlayView(context).apply {
             layoutParams = android.widget.FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -226,7 +233,6 @@ class OcrSettingsDialog(
         }
         imageContainer.addView(roiView)
 
-        // 안내 텍스트
         val tvGuide = TextView(context).apply {
             text = "버튼 선택 후 화면에서 드래그"
             setTextColor(Color.WHITE); textSize = 14f
@@ -239,7 +245,6 @@ class OcrSettingsDialog(
         }
         root.addView(tvGuide)
 
-        // 하단 버튼바
         val btnBar = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER
@@ -259,7 +264,7 @@ class OcrSettingsDialog(
             setOnClickListener { action() }
         }
 
-        // Digest 인증 클라이언트
+        // ★ 동적으로 받은 인증정보 사용
         val authCache = ConcurrentHashMap<String, CachingAuthenticator>()
         val creds = Credentials(snapUser, snapPass)
         val auth = DispatchingAuthenticator.Builder()
@@ -267,32 +272,38 @@ class OcrSettingsDialog(
             .with("basic", BasicAuthenticator(creds))
             .build()
         val httpClient = OkHttpClient.Builder()
-            .connectTimeout(4, TimeUnit.SECONDS)
-            .readTimeout(4, TimeUnit.SECONDS)
+            .connectTimeout(6, TimeUnit.SECONDS)
+            .readTimeout(6, TimeUnit.SECONDS)
             .authenticator(CachingAuthenticatorDecorator(auth, authCache))
             .addInterceptor(AuthenticationCacheInterceptor(authCache))
             .build()
         val mainHandler = Handler(Looper.getMainLooper())
 
-        // 스냅샷 로드 함수
         fun loadSnapshot() {
-            tvGuide.text = "📡  스냅샷 수신 중..."
+            tvGuide.text = "📡  스냅샷 수신 중... (${snapUrl.substringAfter("//").substringBefore("/")})"
             Thread {
+                var errorMsg = ""
                 val bmp = try {
                     val req = Request.Builder().url(snapUrl).get().build()
                     httpClient.newCall(req).execute().use { resp ->
-                        if (resp.isSuccessful)
+                        if (resp.isSuccessful) {
                             resp.body?.bytes()?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
-                        else null
+                        } else {
+                            errorMsg = "HTTP ${resp.code}"
+                            null
+                        }
                     }
-                } catch (e: Exception) { null }
+                } catch (e: Exception) {
+                    errorMsg = e.message ?: "연결 실패"
+                    null
+                }
 
                 mainHandler.post {
                     if (bmp != null) {
                         imgView.setImageBitmap(bmp)
                         tvGuide.text = "버튼 선택 후 드래그 | 🔄 새로고침으로 이미지 업데이트"
                     } else {
-                        tvGuide.text = "⚠ 스냅샷 수신 실패 - 새로고침 눌러주세요"
+                        tvGuide.text = "⚠ 스냅샷 수신 실패: $errorMsg - 🔄 다시 시도"
                     }
                 }
             }.start()
@@ -315,7 +326,6 @@ class OcrSettingsDialog(
             tvGuide.text = "⚖ 중량 영역을 드래그하세요"
         }
         val btnReset = makeBtn("↺ 초기화", "#4A4A00") {
-            // 전체화면으로 리셋 (작동 확인된 기본값)
             OcrSettings.setWindRoi(context,   OcrSettings.Roi(0.0f, 0.0f, 1.0f, 0.5f))
             OcrSettings.setWeightRoi(context, OcrSettings.Roi(0.0f, 0.5f, 1.0f, 0.5f))
             roiView.loadSavedRois(context)
@@ -335,8 +345,6 @@ class OcrSettingsDialog(
         dialog.setContentView(root)
         dialog.show()
 
-        // 자동으로 첫 스냅샷 로드
         loadSnapshot()
     }
 }
-
