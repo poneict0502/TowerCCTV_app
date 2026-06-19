@@ -54,6 +54,11 @@ class PlayerActivity : AppCompatActivity() {
 
     private lateinit var presetBtns: List<Pair<Button, Int>>
 
+    // ── 스와이프 프리셋 순환 ──
+    private var presetIdx = -1
+    @Volatile private var cameraPresets: List<Int> = emptyList()   // 카메라에 실제 설정된 프리셋
+    private val cardHandler = Handler(Looper.getMainLooper())
+
     // OSD 갱신 (0.3초)
     private val osdHandler = Handler(Looper.getMainLooper())
     private val osdRunnable = object : Runnable {
@@ -102,7 +107,7 @@ class PlayerActivity : AppCompatActivity() {
             } catch (e: Exception) { }
         }
 
-        libVLC = LibVLC(this, arrayListOf("--no-audio", "--rtsp-tcp", "--network-caching=300"))
+        libVLC = com.pone.towerccctv.VlcProvider.get(this)   // 전역 공유 (재생성 비용 제거)
 
         // TTS 초기화
         tts = TextToSpeech(this) { status ->
@@ -116,6 +121,7 @@ class PlayerActivity : AppCompatActivity() {
             val ch = Channel(0, label, rtspUrl, httpBase, ptzChannel,
                 username, password, true, deviceType)
             ptz = PtzController(ch)
+            ptz?.fetchPresets { cameraPresets = it }   // 스와이프 순환용 프리셋 목록 로드
         } else {
             b.ptzArea.alpha = 0.3f
             b.btnZoomIn.alpha = 0.3f; b.btnZoomIn.isEnabled = false
@@ -163,7 +169,7 @@ class PlayerActivity : AppCompatActivity() {
         val p = MediaPlayer(libVLC)
         player = p
         p.attachViews(b.vlcPlayer, null, true, false)
-        p.videoScale = MediaPlayer.ScaleType.SURFACE_BEST_FIT
+        p.videoScale = MediaPlayer.ScaleType.SURFACE_FIT_SCREEN  // 화면 꽉 채움(검은 띠 제거, 가장자리 크롭)
 
         val media = Media(libVLC, Uri.parse(url))
         media.setHWDecoderEnabled(false, false)
@@ -236,7 +242,59 @@ class PlayerActivity : AppCompatActivity() {
         val detector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onDoubleTap(e: MotionEvent): Boolean { goBack(); return true }
         })
-        b.touchOverlay.setOnTouchListener { _, ev -> detector.onTouchEvent(ev); true }
+        // 좌우 스와이프 → 프리셋 순환 (수동 감지, 왼쪽=다음·오른쪽=이전)
+        var downX = 0f; var downY = 0f; var downT = 0L
+        b.touchOverlay.setOnTouchListener { _, ev ->
+            detector.onTouchEvent(ev)
+            when (ev.action) {
+                MotionEvent.ACTION_DOWN -> { downX = ev.x; downY = ev.y; downT = ev.eventTime }
+                MotionEvent.ACTION_UP -> {
+                    val dx = ev.x - downX; val dy = ev.y - downY; val dt = ev.eventTime - downT
+                    if (ptz != null && dt < 600 &&
+                        kotlin.math.abs(dx) > 140f &&
+                        kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.5f) {
+                        cyclePreset(dx < 0)
+                    }
+                }
+            }
+            true
+        }
+    }
+
+    // 카메라에 설정된 프리셋 전체 순환. 못 가져왔으면 1~9
+    private fun presetCycleList(): List<Int> =
+        if (cameraPresets.isNotEmpty()) cameraPresets else (1..9).toList()
+
+    private fun cyclePreset(forward: Boolean) {
+        if (ptz == null) return
+        val list = presetCycleList()
+        if (list.isEmpty()) return
+        presetIdx = when {
+            presetIdx < 0 -> 0
+            forward       -> (presetIdx + 1) % list.size
+            else          -> (presetIdx - 1 + list.size) % list.size
+        }
+        gotoPresetWithFeedback(list[presetIdx])
+    }
+
+    private fun gotoPresetWithFeedback(id: Int) {
+        ptz?.gotoPreset(id)
+        val labelText = "프리셋 $id"   // 항상 "프리셋 N" 통일
+        showCmdCard("📍  $labelText")
+        tts?.speak(labelText, TextToSpeech.QUEUE_FLUSH, null, "preset")
+    }
+
+    // 반투명 카드 피드백 (1.1초 후 사라짐)
+    private fun showCmdCard(text: String) {
+        b.cmdCardPlayer.animate().cancel()
+        b.cmdCardPlayer.text = text
+        b.cmdCardPlayer.alpha = 1f
+        b.cmdCardPlayer.visibility = View.VISIBLE
+        cardHandler.removeCallbacksAndMessages(null)
+        cardHandler.postDelayed({
+            b.cmdCardPlayer.animate().alpha(0f).setDuration(400)
+                .withEndAction { b.cmdCardPlayer.visibility = View.GONE }.start()
+        }, 1100L)
     }
 
     private fun goBack() { finish(); overridePendingTransition(0, 0) }
@@ -408,7 +466,8 @@ class PlayerActivity : AppCompatActivity() {
         cancelReconnect()
         osdHandler.removeCallbacks(osdRunnable)
         player?.detachViews(); player?.release(); player = null
-        libVLC?.release(); libVLC = null
+        libVLC = null   // 전역 공유 인스턴스이므로 release 하지 않음 (참조만 해제)
+        cardHandler.removeCallbacksAndMessages(null)
         tts?.stop(); tts?.shutdown(); tts = null
         b.imgSnapshot.setImageBitmap(null)
     }

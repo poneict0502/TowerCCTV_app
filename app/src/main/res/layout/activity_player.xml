@@ -70,6 +70,17 @@
         <View android:id="@+id/touchOverlay"
             android:layout_width="match_parent" android:layout_height="match_parent"
             android:background="@android:color/transparent"/>
+
+        <!-- 프리셋 전환 피드백 카드 (스와이프) — 비클릭이라 터치는 아래로 통과 -->
+        <TextView android:id="@+id/cmdCardPlayer"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="#CC000000"
+            android:textColor="#FFFFFF" android:textSize="24sp" android:textStyle="bold"
+            android:paddingStart="32dp" android:paddingEnd="32dp"
+            android:paddingTop="20dp" android:paddingBottom="20dp"
+            android:clickable="false" android:focusable="false"
+            android:visibility="gone"/>
     </FrameLayout>
 
     <!-- PTZ 패널 (좌우 이동 가능) -->
