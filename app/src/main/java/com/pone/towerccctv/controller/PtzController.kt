@@ -67,6 +67,31 @@ class PtzController(private val ch: Channel) {
         "${ch.httpBase}/ISAPI/PTZCtrl/channels/${ch.ptzChannel}/presets/$id",
         "<PTZPreset><id>$id</id><presetName>P$id</presetName></PTZPreset>")
 
+    // 카메라에 실제 설정된 프리셋 ID 목록 조회 (스와이프 순환용).
+    // Hikvision ISAPI: GET .../presets → <PTZPresetList> 안의 enabled≠false 인 <id> 만 수집.
+    // 실패/없음이면 1~9 폴백. onResult 는 IO 스레드에서 호출됨(@Volatile 필드 대입만 권장).
+    fun fetchPresets(onResult: (List<Int>) -> Unit) {
+        scope.launch {
+            val ids = runCatching {
+                val req = Request.Builder()
+                    .url("${ch.httpBase}/ISAPI/PTZCtrl/channels/${ch.ptzChannel}/presets")
+                    .get().build()
+                client.newCall(req).execute().use { resp ->
+                    val body = resp.body?.string() ?: ""
+                    Regex("<PTZPreset>(.*?)</PTZPreset>", RegexOption.DOT_MATCHES_ALL)
+                        .findAll(body)
+                        .mapNotNull { m ->
+                            val block = m.groupValues[1]
+                            if (block.contains("<enabled>false</enabled>")) return@mapNotNull null
+                            Regex("<id>(\\d+)</id>").find(block)?.groupValues?.get(1)?.toIntOrNull()
+                        }
+                        .distinct().sorted().toList()
+                }
+            }.getOrDefault(emptyList())
+            onResult(if (ids.isNotEmpty()) ids else (1..9).toList())
+        }
+    }
+
     fun moveByAngle(angle: Double, magnitude: Float) {
         if (magnitude < 0.08f) { stop(); return }
         val speed = (magnitude * 70).toInt().coerceIn(8, 70)

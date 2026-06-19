@@ -11,8 +11,14 @@ import android.content.Context
 object OcrSettings {
     private const val PREFS = "ocr_settings"
 
+    // ── 마스터 스위치 ─────────────────────────────────────────────
+    // OCR 기능 일시 비활성화(코드는 그대로 유지). 되살리려면 true 로만 바꾸면 됨.
+    // false 이면 isOcrEnabled() 가 항상 false → 백그라운드 OCR·OSD 중량표시 전부 꺼짐.
+    const val OCR_FEATURE_ENABLED = false
+
     // OCR 모드
     fun isOcrEnabled(ctx: Context) =
+        OCR_FEATURE_ENABLED &&
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getBoolean("ocr_enabled", false)
 

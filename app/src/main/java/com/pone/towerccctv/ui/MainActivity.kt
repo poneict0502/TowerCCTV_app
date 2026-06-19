@@ -77,7 +77,6 @@ class MainActivity : AppCompatActivity() {
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
         setFullscreen()
-        handler.post(clockRunnable)
         alertDb = AlertDatabase(this)
 
         vlcList   = listOf(b.vlc0, b.vlc1, b.vlc2, b.vlc3)
@@ -86,7 +85,7 @@ class MainActivity : AppCompatActivity() {
         ipList    = listOf(b.ip0,  b.ip1,  b.ip2,  b.ip3)
         touchList = listOf(b.touch0, b.touch1, b.touch2, b.touch3)
 
-        libVLC = LibVLC(this, arrayListOf("--no-audio", "--rtsp-tcp", "--network-caching=300"))
+        libVLC = com.pone.towerccctv.VlcProvider.get(this)   // 전역 공유 (재생성 비용 제거)
 
         tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
@@ -149,7 +148,8 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         setFullscreen()
-        handler.post(clockRunnable)
+        // 항상 remove 후 post → 카메라 전환(재개)마다 시계 타이머가 중복 누적되는 것 방지
+        handler.removeCallbacks(clockRunnable); handler.post(clockRunnable)
         alertDb = AlertDatabase(this)
         startAll()
     }
@@ -179,6 +179,7 @@ class MainActivity : AppCompatActivity() {
         super.onStop()
         // 앱이 백그라운드로 가도 OSD 정리 (안전장치)
         try { sendEmptyPosOsd() } catch (e: Exception) {}
+        handler.removeCallbacks(clockRunnable)   // 백그라운드에선 시계 타이머 정지
         stopAll()
     }
 
@@ -189,7 +190,7 @@ class MainActivity : AppCompatActivity() {
         stopAll()
         ocrEngine?.release(); ocrEngine = null
         handler.removeCallbacks(clockRunnable)
-        libVLC?.release(); libVLC = null
+        libVLC = null   // 전역 공유 인스턴스이므로 release 하지 않음 (참조만 해제)
         tts?.stop(); tts?.shutdown(); tts = null
     }
 
@@ -250,7 +251,7 @@ class MainActivity : AppCompatActivity() {
         val player = MediaPlayer(libVLC)
         players[idx] = player
         player.attachViews(vlcList[idx], null, true, false)
-        player.videoScale = MediaPlayer.ScaleType.SURFACE_BEST_FIT
+        player.videoScale = MediaPlayer.ScaleType.SURFACE_FIT_SCREEN  // 화면 꽉 채움(검은 띠 제거, 가장자리 크롭)
 
         val url = ch.toSubStreamUrl()
         val media = Media(libVLC, Uri.parse(url))
