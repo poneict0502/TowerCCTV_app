@@ -143,6 +143,14 @@ class MainActivity : AppCompatActivity() {
             }
             popup.show()
         }
+        b.btnExit.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("종료")
+                .setMessage("앱을 종료하시겠습니까?")
+                .setPositiveButton("종료") { _, _ -> finishAffinity() }
+                .setNegativeButton("취소", null)
+                .show()
+        }
     }
 
     override fun onResume() {

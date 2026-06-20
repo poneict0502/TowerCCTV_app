@@ -46,12 +46,18 @@
             android:text="00:00"
             android:textColor="#FFFFFF" android:textSize="18sp" android:textStyle="bold"
             android:fontFamily="monospace"
-            android:layout_marginStart="12dp" android:layout_marginEnd="8dp"/>
+            android:layout_marginStart="12dp" android:layout_marginEnd="10dp"/>
         <Button android:id="@+id/btnSettings"
-            android:layout_width="wrap_content" android:layout_height="36dp"
-            android:text="⚙  설정" android:textSize="12sp" android:textColor="#CCCCCC"
+            android:layout_width="wrap_content" android:layout_height="48dp"
+            android:text="⚙  설정" android:textSize="15sp" android:textColor="#FFFFFF"
             android:background="@drawable/bg_btn"
-            android:paddingStart="14dp" android:paddingEnd="14dp"/>
+            android:paddingStart="18dp" android:paddingEnd="18dp"
+            android:layout_marginEnd="8dp"/>
+        <Button android:id="@+id/btnExit"
+            android:layout_width="wrap_content" android:layout_height="48dp"
+            android:text="⏻  종료" android:textSize="15sp" android:textColor="#FF6B6B"
+            android:background="@drawable/bg_btn"
+            android:paddingStart="18dp" android:paddingEnd="18dp"/>
     </LinearLayout>
 
     <!-- 4분할 그리드 -->
