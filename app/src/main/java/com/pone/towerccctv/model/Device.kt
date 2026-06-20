@@ -33,19 +33,23 @@ data class Device(
     val enabled: Boolean = true
 ) {
     fun toChannels(): List<Channel> {
+        // ★ 아이디/비번에 섞인 앞뒤 공백·줄바꿈(\n,\r) 제거 — 복붙 시 딸려온 줄바꿈이
+        //   RTSP/PTZ 인증을 깨뜨리는 것 방지 (예: "1234qwer@\n" → %0A 로 인코딩되어 인증 실패)
+        val u = username.trim()
+        val p = password.trim()
         // ★ 비밀번호/사용자명에 특수문자(@, :, /, # 등)가 있으면 URL 인코딩 필수
-        val encUser = java.net.URLEncoder.encode(username, "UTF-8")
-        val encPass = java.net.URLEncoder.encode(password, "UTF-8")
+        val encUser = java.net.URLEncoder.encode(u, "UTF-8")
+        val encPass = java.net.URLEncoder.encode(p, "UTF-8")
         return when (type) {
             DeviceType.CAMERA -> listOf(
                 Channel(0, name,
                     "rtsp://$encUser:$encPass@$ip:$rtspPort/Streaming/Channels/101",
-                    "http://$ip:$httpPort", 1, username, password, hasPtz, DeviceType.CAMERA)
+                    "http://$ip:$httpPort", 1, u, p, hasPtz, DeviceType.CAMERA)
             )
             DeviceType.NVR -> (1..channelCount).map { ch ->
                 Channel(ch - 1, "$name-CH$ch",
                     "rtsp://$encUser:$encPass@$ip:$rtspPort/Streaming/Channels/${ch * 100 + 1}",
-                    "http://$ip:$httpPort", ch, username, password, hasPtz, DeviceType.NVR)
+                    "http://$ip:$httpPort", ch, u, p, hasPtz, DeviceType.NVR)
             }
         }
     }

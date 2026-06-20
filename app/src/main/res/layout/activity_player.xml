@@ -17,15 +17,15 @@
         <ImageView android:id="@+id/imgSnapshot"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:scaleType="centerCrop"
+            android:scaleType="fitCenter"
             android:visibility="gone"/>
 
         <!-- 상단 통합바 (채널정보 + OSD) -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal" android:gravity="center_vertical"
-            android:paddingStart="14dp" android:paddingEnd="14dp" android:paddingTop="8dp"
-            android:paddingBottom="8dp"
-            android:background="#EE000000">
+            android:paddingStart="14dp" android:paddingEnd="14dp" android:paddingTop="6dp"
+            android:paddingBottom="10dp"
+            android:background="@drawable/bg_topbar_fade">
 
             <!-- 좌측: 상태 표시 -->
             <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
@@ -70,6 +70,15 @@
         <View android:id="@+id/touchOverlay"
             android:layout_width="match_parent" android:layout_height="match_parent"
             android:background="@android:color/transparent"/>
+
+        <!-- 패널 숨김/표시 토글 (상단 중앙) — 우측 PTZ 패널을 접어 영상 꽉 채움 -->
+        <Button android:id="@+id/btnWide"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="4dp"
+            android:text="⛶ 넓게" android:textSize="13sp" android:textColor="#FFFFFF"
+            android:background="@drawable/bg_btn"
+            android:paddingStart="14dp" android:paddingEnd="14dp"/>
 
         <!-- 프리셋 전환 피드백 카드 (스와이프) — 비클릭이라 터치는 아래로 통과 -->
         <TextView android:id="@+id/cmdCardPlayer"

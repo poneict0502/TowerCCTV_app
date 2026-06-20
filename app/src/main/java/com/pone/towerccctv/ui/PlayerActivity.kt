@@ -138,6 +138,9 @@ class PlayerActivity : AppCompatActivity() {
         setupControls()
         setupDoubleTap()
         startPlaying(rtspUrl)
+        // 기본은 패널 숨김(넓게) → 필요할 때 ◧ 패널 로 펼침 (하이드로와 동일)
+        b.ptzPanel.visibility = View.GONE
+        b.btnWide.text = "◧ 패널"
 
 
         if (ocrOn) {
@@ -169,11 +172,13 @@ class PlayerActivity : AppCompatActivity() {
         val p = MediaPlayer(libVLC)
         player = p
         p.attachViews(b.vlcPlayer, null, true, false)
-        p.videoScale = MediaPlayer.ScaleType.SURFACE_FIT_SCREEN  // 화면 꽉 채움(검은 띠 제거, 가장자리 크롭)
+        p.videoScale = MediaPlayer.ScaleType.SURFACE_BEST_FIT  // 비율 유지(전체 영상, 크롭·크기변화 없음, 얇은 여백)
 
         val media = Media(libVLC, Uri.parse(url))
-        media.setHWDecoderEnabled(false, false)
-        media.addOption(":network-caching=300"); media.addOption(":rtsp-tcp")
+        media.setHWDecoderEnabled(true, false)   // 단독 화면은 HW 디코딩 (시작 빠름·CPU↓)
+        // 전체화면 열 때 지연 최소화 (캐싱 축소 + 지터 보정 끔)
+        media.addOption(":network-caching=150"); media.addOption(":rtsp-tcp")
+        media.addOption(":clock-jitter=0"); media.addOption(":clock-synchro=0")
         p.media = media; media.release()
 
         p.setEventListener { ev ->
@@ -261,9 +266,11 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    // 카메라에 설정된 프리셋 전체 순환. 못 가져왔으면 1~9
-    private fun presetCycleList(): List<Int> =
-        if (cameraPresets.isNotEmpty()) cameraPresets else (1..9).toList()
+    // 1~9번 프리셋만 순환 (하이크비전 공장 프리셋이 많아도 앱은 1~9만 사용). 못 가져왔으면 1~9
+    private fun presetCycleList(): List<Int> {
+        val nine = cameraPresets.filter { it in 1..9 }
+        return if (nine.isNotEmpty()) nine else (1..9).toList()
+    }
 
     private fun cyclePreset(forward: Boolean) {
         if (ptz == null) return
@@ -295,6 +302,13 @@ class PlayerActivity : AppCompatActivity() {
             b.cmdCardPlayer.animate().alpha(0f).setDuration(400)
                 .withEndAction { b.cmdCardPlayer.visibility = View.GONE }.start()
         }, 1100L)
+    }
+
+    private fun togglePanel() {
+        // 우측 PTZ 패널을 접으면 영상이 화면 전체 폭으로 넓어짐
+        val hide = b.ptzPanel.visibility == View.VISIBLE
+        b.ptzPanel.visibility = if (hide) View.GONE else View.VISIBLE
+        b.btnWide.text = if (hide) "◧ 패널" else "⛶ 넓게"
     }
 
     private fun goBack() { finish(); overridePendingTransition(0, 0) }
@@ -380,6 +394,7 @@ class PlayerActivity : AppCompatActivity() {
             applyPanelPosition(isPanelRight)
             prefs.edit().putBoolean(panelKey, isPanelRight).apply()
         }
+        b.btnWide.setOnClickListener { togglePanel() }
 
         // 방향키 ON/OFF 채널별 저장
         val ptzKey = "ptz_dpad_on_$channelLabel"
@@ -414,7 +429,7 @@ class PlayerActivity : AppCompatActivity() {
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> ptz?.zoomStop()
             }; true }
         presetBtns.forEach { (btn, id) ->
-            btn.setOnClickListener { ptz?.gotoPreset(id) }
+            btn.setOnClickListener { gotoPresetWithFeedback(id) }   // 번호 버튼도 카드+음성 피드백
             btn.setOnLongClickListener { showPresetNameDialog(id); true }
         }
     }
