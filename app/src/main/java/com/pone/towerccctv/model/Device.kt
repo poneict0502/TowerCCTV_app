@@ -5,17 +5,21 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 enum class DeviceType { CAMERA, NVR }
+enum class CameraBrand { HIKVISION, DAHUA, IDIS, HANWHA }
 
 data class Channel(
     val index: Int,
     val label: String,
-    val rtspUrl: String,
+    val rtspUrl: String,        // 메인스트림 (고화질) — 단독/전체화면용
     val httpBase: String,
     val ptzChannel: Int,
     val username: String,
     val password: String,
     val hasPtz: Boolean,
-    val deviceType: DeviceType
+    val deviceType: DeviceType,
+    // ↓ 신규 필드는 끝에 기본값으로 추가 (기존 9개 인자 호출 호환)
+    val brand: CameraBrand = CameraBrand.HIKVISION,
+    val subUrl: String = ""     // 서브스트림 (저화질) — 4분할용
 )
 
 data class Device(
@@ -23,6 +27,7 @@ data class Device(
     val id: String = java.util.UUID.randomUUID().toString(),
     val name: String,
     val type: DeviceType,
+    val brand: CameraBrand = CameraBrand.HIKVISION,
     val ip: String,
     val rtspPort: Int = 554,
     val httpPort: Int = 80,
@@ -33,25 +38,34 @@ data class Device(
     val enabled: Boolean = true
 ) {
     fun toChannels(): List<Channel> {
-        // ★ 아이디/비번에 섞인 앞뒤 공백·줄바꿈(\n,\r) 제거 — 복붙 시 딸려온 줄바꿈이
-        //   RTSP/PTZ 인증을 깨뜨리는 것 방지 (예: "1234qwer@\n" → %0A 로 인코딩되어 인증 실패)
+        // ★ 아이디/비번 앞뒤 공백·줄바꿈 제거 (복붙 %0A 로 인한 인증 실패 방지)
         val u = username.trim()
         val p = password.trim()
-        // ★ 비밀번호/사용자명에 특수문자(@, :, /, # 등)가 있으면 URL 인코딩 필수
         val encUser = java.net.URLEncoder.encode(u, "UTF-8")
         val encPass = java.net.URLEncoder.encode(p, "UTF-8")
+        val base = "rtsp://$encUser:$encPass@$ip:$rtspPort"
+        val http = "http://$ip:$httpPort"
         return when (type) {
-            DeviceType.CAMERA -> listOf(
-                Channel(0, name,
-                    "rtsp://$encUser:$encPass@$ip:$rtspPort/Streaming/Channels/101",
-                    "http://$ip:$httpPort", 1, u, p, hasPtz, DeviceType.CAMERA)
-            )
+            DeviceType.CAMERA -> {
+                val (main, sub) = streamUrls(base, 1)
+                listOf(Channel(0, name, main, http, 1, u, p, hasPtz, DeviceType.CAMERA, brand, sub))
+            }
             DeviceType.NVR -> (1..channelCount).map { ch ->
-                Channel(ch - 1, "$name-CH$ch",
-                    "rtsp://$encUser:$encPass@$ip:$rtspPort/Streaming/Channels/${ch * 100 + 1}",
-                    "http://$ip:$httpPort", ch, u, p, hasPtz, DeviceType.NVR)
+                val (main, sub) = streamUrls(base, ch)
+                Channel(ch - 1, "$name-CH$ch", main, http, ch, u, p, hasPtz, DeviceType.NVR, brand, sub)
             }
         }
+    }
+
+    // 브랜드별 메인/서브 RTSP 경로
+    private fun streamUrls(base: String, chn: Int): Pair<String, String> = when (brand) {
+        CameraBrand.HIKVISION -> Pair("$base/Streaming/Channels/${chn * 100 + 1}",
+                                      "$base/Streaming/Channels/${chn * 100 + 2}")
+        CameraBrand.DAHUA     -> Pair("$base/cam/realmonitor?channel=$chn&subtype=0",
+                                      "$base/cam/realmonitor?channel=$chn&subtype=1")
+        CameraBrand.IDIS      -> Pair("$base/trackID=1", "$base/trackID=2")
+        // 한화 Wisenet: profile2=H.264 메인. profile4 없는 기기 있음(실측) → 녹화도 profile2(메인)로 안전하게
+        CameraBrand.HANWHA    -> Pair("$base/profile2/media.smp", "$base/profile2/media.smp")
     }
 }
 
@@ -64,6 +78,7 @@ object DeviceStore {
         devices.forEach { d ->
             arr.put(JSONObject().apply {
                 put("id", d.id); put("name", d.name); put("type", d.type.name)
+                put("brand", d.brand.name)
                 put("ip", d.ip); put("rtspPort", d.rtspPort); put("httpPort", d.httpPort)
                 put("username", d.username); put("password", d.password)
                 put("channelCount", d.channelCount); put("hasPtz", d.hasPtz)
@@ -94,11 +109,14 @@ object DeviceStore {
                     id = loadedId,
                     name = o.getString("name"),
                     type = DeviceType.valueOf(o.getString("type")),
-                    ip = o.getString("ip"),
+                    brand = CameraBrand.valueOf(o.optString("brand", "HIKVISION")),
+                    ip = o.getString("ip").trim(),
                     rtspPort = o.optInt("rtspPort", 554),
                     httpPort = o.optInt("httpPort", 80),
-                    username = o.getString("username"),
-                    password = o.getString("password"),
+                    // ★ 복붙 시 끼어드는 앞뒤 공백·줄바꿈(%0A) 제거 — 시간동기/최적화/PTZ 등 모든 인증 경로 공통 정상화
+                    //   (영상 경로는 toChannels()에서 이미 trim. 여기서 소스 자체를 정리해 raw 사용처까지 커버)
+                    username = o.getString("username").trim(),
+                    password = o.getString("password").trim(),
                     channelCount = o.optInt("channelCount", 1),
                     hasPtz = o.optBoolean("hasPtz", true),
                     enabled = o.optBoolean("enabled", true)

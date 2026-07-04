@@ -2,6 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
@@ -28,15 +36,25 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".ui.DeviceListActivity" android:exported="false"/>
+        <activity android:name=".ui.DeviceListActivity" android:exported="false"
+            android:screenOrientation="landscape"/>
         <activity android:name=".ui.AddDeviceActivity" android:exported="false"
+            android:screenOrientation="landscape"
             android:windowSoftInputMode="adjustResize"/>
         <activity android:name=".ui.PlayerActivity" android:exported="false"
             android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|keyboardHidden"/>
-        <activity android:name=".ui.AlertHistoryActivity"/>
+        <activity android:name=".ui.AlertHistoryActivity" android:screenOrientation="landscape"/>
         <activity android:name=".ui.PlaybackActivity" android:exported="false"
             android:screenOrientation="landscape"/>
+
+        <receiver android:name=".RestartReceiver" android:exported="false"/>
+        <receiver android:name=".BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
 
     </application>
 </manifest>

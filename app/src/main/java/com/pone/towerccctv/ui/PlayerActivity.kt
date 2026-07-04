@@ -26,8 +26,11 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.pone.towerccctv.R
+import com.pone.towerccctv.UsageLogger
+import com.pone.towerccctv.trustSelfSignedCam
 import com.pone.towerccctv.controller.PtzController
 import com.pone.towerccctv.databinding.ActivityPlayerBinding
+import com.pone.towerccctv.model.CameraBrand
 import com.pone.towerccctv.model.Channel
 import com.pone.towerccctv.model.DeviceType
 import android.speech.tts.TextToSpeech
@@ -44,6 +47,7 @@ class PlayerActivity : AppCompatActivity() {
     private var player: MediaPlayer? = null
     private var ptz: PtzController? = null
     private var channelLabel = ""
+    private var viewStartMs = 0L
 
     private val reconnectHandler = Handler(Looper.getMainLooper())
     private var reconnectJob: Runnable? = null
@@ -51,6 +55,35 @@ class PlayerActivity : AppCompatActivity() {
     private val MAX_RECONNECT = 10
     private var rtspUrlCached = ""
     private var isPlaying = false
+
+    // 프레임 기반 생존 워치독: 재생 중인데 새 프레임이 10초간 안 오면(에러 이벤트 없이 스톨/죽음) '연결 끊김' + 얼어붙은 프레임 덮기
+    private var lastPics = -1
+    private var liveStreak = 0
+    private var lastFrameNs = 0L
+    private val liveWatch = object : Runnable {
+        override fun run() {
+            val p = player
+            if (p != null && isPlaying) {
+                var pics = -1
+                try { val m = p.media; val s = m?.stats; if (s != null) pics = s.decodedVideo; m?.release() } catch (e: Exception) {}
+                val adv = pics >= 0 && lastPics in 0 until pics
+                if (pics >= 0) lastPics = pics
+                liveStreak = if (adv) liveStreak + 1 else 0
+                if (liveStreak >= 2) lastFrameNs = System.nanoTime()
+                if (lastFrameNs > 0L && (System.nanoTime() - lastFrameNs) / 1_000_000 > 10000) {
+                    isPlaying = false
+                    setStatus("⚠ 연결 끊김 (카메라 확인)", "#F44336")
+                    b.dotPlayer.setBackgroundResource(R.drawable.dot_red)
+                    coverDead()
+                    scheduleReconnect()
+                }
+            } else if (p != null && !isPlaying && reconnectJob == null && reconnectCount < MAX_RECONNECT) {
+                // 연결은 했는데 4초 넘게 첫 프레임(재생) 안 옴 = vout race 등 무증상 검은화면 → 자동 재시작
+                if (lastFrameNs > 0L && (System.nanoTime() - lastFrameNs) / 1_000_000 > 4000) startPlaying(rtspUrlCached)
+            }
+            reconnectHandler.postDelayed(this, 1000L)
+        }
+    }
 
     private lateinit var presetBtns: List<Pair<Button, Int>>
 
@@ -86,7 +119,10 @@ class PlayerActivity : AppCompatActivity() {
         val hasPtz     = intent.getBooleanExtra("hasPtz", false)
         val ptzChannel = intent.getIntExtra("ptzChannel", 1)
         val deviceType = DeviceType.valueOf(intent.getStringExtra("deviceType") ?: "CAMERA")
+        val brand      = CameraBrand.valueOf(intent.getStringExtra("brand") ?: "HIKVISION")
         channelLabel   = label
+        viewStartMs = android.os.SystemClock.elapsedRealtime()
+        UsageLogger.log("view_open", "cam" to label)
         rtspUrlCached  = rtspUrl
 
         b.lblPlayer.text = label
@@ -96,15 +132,20 @@ class PlayerActivity : AppCompatActivity() {
         val ocrOn = OcrSettings.isOcrEnabled(this)
         b.osdWeightPlayer.visibility = if (ocrOn) View.VISIBLE else View.GONE
 
-        // 스냅샷 배경
-        intent.getStringExtra("snapPath")?.let { path ->
+        // 스냅샷 배경 (그리드 직전 프레임)
+        val snapPath = intent.getStringExtra("snapPath")
+        if (snapPath != null) {
             try {
-                BitmapFactory.decodeFile(path)?.let { bmp ->
+                BitmapFactory.decodeFile(snapPath)?.let { bmp ->
                     b.imgSnapshot.setImageBitmap(bmp)
                     b.imgSnapshot.alpha = 1f
                     b.imgSnapshot.visibility = View.VISIBLE
                 }
             } catch (e: Exception) { }
+        } else {
+            // 그리드 스냅샷 없으면 → 카메라 JPEG 즉시 받아 배경에 (연결 중 검은화면 방지)
+            val ip = httpBase.substringAfter("//").substringBefore(":").substringBefore("/")
+            loadLiveSnapshot(brand, ip, username, password)
         }
 
         libVLC = com.pone.towerccctv.VlcProvider.get(this)   // 전역 공유 (재생성 비용 제거)
@@ -119,9 +160,11 @@ class PlayerActivity : AppCompatActivity() {
 
         if (hasPtz) {
             val ch = Channel(0, label, rtspUrl, httpBase, ptzChannel,
-                username, password, true, deviceType)
+                username, password, true, deviceType, brand)
             ptz = PtzController(ch)
-            ptz?.fetchPresets { cameraPresets = it }   // 스와이프 순환용 프리셋 목록 로드
+            // 캐시된 프리셋 목록 먼저 사용(조회 느림/실패 시에도 1~9 폴백 방지) → 조회 성공 시 갱신
+            cameraPresets = loadCachedPresets()
+            ptz?.fetchPresets { if (it.isNotEmpty()) { cameraPresets = it; saveCachedPresets(it) } }
         } else {
             b.ptzArea.alpha = 0.3f
             b.btnZoomIn.alpha = 0.3f; b.btnZoomIn.isEnabled = false
@@ -179,6 +222,7 @@ class PlayerActivity : AppCompatActivity() {
         // 전체화면 열 때 지연 최소화 (캐싱 축소 + 지터 보정 끔)
         media.addOption(":network-caching=150"); media.addOption(":rtsp-tcp")
         media.addOption(":clock-jitter=0"); media.addOption(":clock-synchro=0")
+        media.addOption(":no-audio")   // 오디오 트랙 스킵 → 시작 빠름
         p.media = media; media.release()
 
         p.setEventListener { ev ->
@@ -193,6 +237,7 @@ class PlayerActivity : AppCompatActivity() {
                                 .withEndAction {
                                     b.imgSnapshot.visibility = View.GONE
                                     b.imgSnapshot.setImageBitmap(null)
+                                    b.imgSnapshot.setBackgroundColor(Color.TRANSPARENT)   // 죽음 막 해제
                                 }.start()
                         }
                     }
@@ -213,6 +258,7 @@ class PlayerActivity : AppCompatActivity() {
             }
         }
         p.play()
+        lastPics = -1; liveStreak = 0; lastFrameNs = System.nanoTime()   // 워치독 기준 재설정(연결 grace)
     }
 
     private fun scheduleReconnect() {
@@ -221,11 +267,12 @@ class PlayerActivity : AppCompatActivity() {
             setStatus("연결 실패 (재시도 중단)", "#F44336"); return
         }
         reconnectCount++
-        val delay = minOf(reconnectCount * 3000L, 15000L)
-        setStatus("재연결 중... ($reconnectCount/$MAX_RECONNECT) ${delay/1000}초 후", "#FF9800")
+        // 첫 1~2회는 일시적 실패(연결 직후 IP 0.0.0.0 등) 가능성 大 → 0.5초 빠른 재시도 + "연결 중"만(겁나는 에러 숨김)
+        val delay = if (reconnectCount <= 2) 500L else minOf(reconnectCount * 2000L, 12000L)
+        setStatus(if (reconnectCount <= 2) "연결 중..." else "재연결 중... ($reconnectCount/$MAX_RECONNECT)", "#FF9800")
+        if (reconnectCount > 2) coverDead()   // 진짜 문제 → 얼어붙은 프레임 덮기
         val job = Runnable {
             if (isDestroyed || isFinishing) return@Runnable
-            setStatus("재연결 시도 중...", "#FFB300")
             b.dotPlayer.setBackgroundResource(R.drawable.dot_yellow)
             startPlaying(rtspUrlCached)
         }
@@ -241,6 +288,67 @@ class PlayerActivity : AppCompatActivity() {
     private fun setStatus(text: String, colorHex: String) {
         b.tvStreamStatus.text = text
         b.tvStreamStatus.setTextColor(Color.parseColor(colorHex))
+    }
+
+    // 카메라 죽음/끊김 시: 얼어붙은 마지막 프레임을 어두운 막으로 덮어 '정상처럼' 보이지 않게 (안전 필수)
+    private fun coverDead() {
+        b.imgSnapshot.setImageBitmap(null)
+        b.imgSnapshot.setBackgroundColor(0xF00A0A0A.toInt())
+        b.imgSnapshot.alpha = 1f
+        b.imgSnapshot.visibility = View.VISIBLE
+        b.imgSnapshot.bringToFront()
+        b.tvStreamStatus.bringToFront(); b.dotPlayer.bringToFront()
+    }
+
+    // 연결 중 검은화면 방지: 카메라 정지영상(JPEG)을 즉시 받아 배경에 깔기
+    private fun snapshotUrl(brand: CameraBrand, ip: String): String? = when (brand) {
+        CameraBrand.DAHUA     -> "http://$ip/cgi-bin/snapshot.cgi?channel=1"
+        CameraBrand.HIKVISION -> "http://$ip/ISAPI/Streaming/channels/101/picture"
+        CameraBrand.HANWHA    -> "https://$ip/stw-cgi/video.cgi?msubmenu=snapshot&action=view&Channel=0"
+        else -> null
+    }
+    private fun loadLiveSnapshot(brand: CameraBrand, ip: String, user: String, pass: String) {
+        val url = snapshotUrl(brand, ip) ?: return
+        Thread {
+            try {
+                val cache = java.util.concurrent.ConcurrentHashMap<String, com.burgstaller.okhttp.digest.CachingAuthenticator>()
+                val creds = com.burgstaller.okhttp.digest.Credentials(user.trim(), pass.trim())
+                val auth = com.burgstaller.okhttp.DispatchingAuthenticator.Builder()
+                    .with("digest", com.burgstaller.okhttp.digest.DigestAuthenticator(creds))
+                    .with("basic", com.burgstaller.okhttp.basic.BasicAuthenticator(creds)).build()
+                val client = okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+                    .authenticator(com.burgstaller.okhttp.CachingAuthenticatorDecorator(auth, cache))
+                    .addInterceptor(com.burgstaller.okhttp.AuthenticationCacheInterceptor(cache)).trustSelfSignedCam().build()
+                client.newCall(okhttp3.Request.Builder().url(url).get().build()).execute().use { r ->
+                    val bytes = r.body?.bytes() ?: return@Thread
+                    val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return@Thread
+                    runOnUiThread {
+                        if (!isPlaying && b.imgSnapshot.drawable == null) {
+                            b.imgSnapshot.setImageBitmap(bmp); b.imgSnapshot.alpha = 1f
+                            b.imgSnapshot.visibility = View.VISIBLE
+                        }
+                    }
+                }
+            } catch (e: Exception) { }
+        }.start()
+    }
+
+    // ── 줌 사용 로깅(지속시간) ──
+    private var zoomStartMs = 0L
+    private var zoomDir = "in"
+    private fun zoomStart(inZoom: Boolean) {
+        ptz?.zoom(inZoom)
+        if (zoomStartMs == 0L) { zoomStartMs = android.os.SystemClock.elapsedRealtime(); zoomDir = if (inZoom) "in" else "out" }
+    }
+    private fun zoomEnd() {
+        ptz?.zoomStop()
+        if (zoomStartMs != 0L) {
+            UsageLogger.log("zoom", "dir" to zoomDir,
+                "ms" to (android.os.SystemClock.elapsedRealtime() - zoomStartMs), "cam" to channelLabel)
+            zoomStartMs = 0L
+        }
     }
 
     private fun setupDoubleTap() {
@@ -267,7 +375,12 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     // 1~9번 프리셋만 순환 (하이크비전 공장 프리셋이 많아도 앱은 1~9만 사용). 못 가져왔으면 1~9
+    // 순환 목록 우선순위: ①앱에서 저장한 프리셋(길게눌러 저장 — 동기·항상 정확) ②카메라 조회/캐시 ③1~9
     private fun presetCycleList(): List<Int> {
+        val saved = (1..9).filter {
+            getSharedPreferences("preset_names", Context.MODE_PRIVATE).contains(presetKey(it))
+        }
+        if (saved.isNotEmpty()) return saved
         val nine = cameraPresets.filter { it in 1..9 }
         return if (nine.isNotEmpty()) nine else (1..9).toList()
     }
@@ -286,6 +399,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun gotoPresetWithFeedback(id: Int) {
         ptz?.gotoPreset(id)
+        UsageLogger.log("preset", "id" to id, "cam" to channelLabel)
         val labelText = "프리셋 $id"   // 항상 "프리셋 N" 통일
         showCmdCard("📍  $labelText")
         tts?.speak(labelText, TextToSpeech.QUEUE_FLUSH, null, "preset")
@@ -317,6 +431,15 @@ class PlayerActivity : AppCompatActivity() {
     override fun onBackPressed() { goBack() }
 
     private fun presetKey(id: Int) = "preset_${channelLabel}_$id"
+
+    // 카메라 프리셋 목록 캐시 (조회 실패/지연 시에도 마지막 정상 목록 유지 → 1~9 폴백 방지)
+    private fun loadCachedPresets(): List<Int> =
+        getSharedPreferences("preset_names", Context.MODE_PRIVATE)
+            .getString("presetlist_$channelLabel", "")
+            ?.split(",")?.mapNotNull { it.trim().toIntOrNull() }?.filter { it in 1..9 } ?: emptyList()
+    private fun saveCachedPresets(list: List<Int>) =
+        getSharedPreferences("preset_names", Context.MODE_PRIVATE)
+            .edit().putString("presetlist_$channelLabel", list.joinToString(",")).apply()
 
     private fun loadPresetNames() {
         val prefs = getSharedPreferences("preset_names", Context.MODE_PRIVATE)
@@ -364,6 +487,7 @@ class PlayerActivity : AppCompatActivity() {
                 ptz?.setPreset(id)
                 savePresetName(id, input.text.toString().trim())
                 Toast.makeText(this, "프리셋 $id 저장됨", Toast.LENGTH_SHORT).show()
+                b.root.postDelayed({ ptz?.fetchPresets { if (it.isNotEmpty()) { cameraPresets = it; saveCachedPresets(it) } } }, 800L)
             }
             .setNegativeButton("취소", null).show()
     }
@@ -420,13 +544,13 @@ class PlayerActivity : AppCompatActivity() {
         b.btnStop.setOnClickListener { ptz?.stop() }
         b.btnZoomIn.setOnTouchListener { _, ev ->
             when(ev.action) {
-                MotionEvent.ACTION_DOWN -> ptz?.zoom(true)
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> ptz?.zoomStop()
+                MotionEvent.ACTION_DOWN -> zoomStart(true)
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> zoomEnd()
             }; true }
         b.btnZoomOut.setOnTouchListener { _, ev ->
             when(ev.action) {
-                MotionEvent.ACTION_DOWN -> ptz?.zoom(false)
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> ptz?.zoomStop()
+                MotionEvent.ACTION_DOWN -> zoomStart(false)
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> zoomEnd()
             }; true }
         presetBtns.forEach { (btn, id) ->
             btn.setOnClickListener { gotoPresetWithFeedback(id) }   // 번호 버튼도 카드+음성 피드백
@@ -446,6 +570,7 @@ class PlayerActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         setFullscreen()
+        reconnectHandler.removeCallbacks(liveWatch); reconnectHandler.postDelayed(liveWatch, 2000L)
     }
 
     private fun setFullscreen() {
@@ -472,13 +597,20 @@ class PlayerActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         cancelReconnect()
+        reconnectHandler.removeCallbacks(liveWatch)
         osdHandler.removeCallbacks(osdRunnable)
         player?.stop()
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        if (viewStartMs != 0L) {
+            UsageLogger.log("view_close", "cam" to channelLabel,
+                "sec" to (android.os.SystemClock.elapsedRealtime() - viewStartMs) / 1000L)
+            viewStartMs = 0L
+        }
         cancelReconnect()
+        reconnectHandler.removeCallbacks(liveWatch)
         osdHandler.removeCallbacks(osdRunnable)
         player?.detachViews(); player?.release(); player = null
         libVLC = null   // 전역 공유 인스턴스이므로 release 하지 않음 (참조만 해제)

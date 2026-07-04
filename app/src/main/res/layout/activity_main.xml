@@ -41,12 +41,30 @@
         </LinearLayout>
 
         <!-- 우측: 시간 | 설정버튼 (가로 배치) -->
+        <TextView android:id="@+id/tvCamBattery"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="" android:textSize="14sp" android:textStyle="bold"
+            android:textColor="#FFFFFF" android:visibility="gone"
+            android:paddingStart="8dp" android:paddingEnd="8dp"
+            android:layout_marginEnd="6dp"/>
+        <TextView android:id="@+id/tvSignal"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="📶 --" android:textSize="14sp" android:textStyle="bold"
+            android:textColor="#AAAAAA"
+            android:paddingStart="8dp" android:paddingEnd="8dp"
+            android:layout_marginEnd="6dp"/>
+        <TextView android:id="@+id/tvBattery"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="🔋 --%" android:textSize="14sp" android:textStyle="bold"
+            android:textColor="#AAAAAA"
+            android:paddingStart="6dp" android:paddingEnd="6dp"
+            android:layout_marginEnd="6dp"/>
         <TextView android:id="@+id/tvClock"
             android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:text="00:00"
             android:textColor="#FFFFFF" android:textSize="18sp" android:textStyle="bold"
             android:fontFamily="monospace"
-            android:layout_marginStart="12dp" android:layout_marginEnd="10dp"/>
+            android:layout_marginStart="4dp" android:layout_marginEnd="10dp"/>
         <Button android:id="@+id/btnSettings"
             android:layout_width="wrap_content" android:layout_height="48dp"
             android:text="⚙  설정" android:textSize="15sp" android:textColor="#FFFFFF"
@@ -59,6 +77,27 @@
             android:background="@drawable/bg_btn"
             android:paddingStart="18dp" android:paddingEnd="18dp"/>
     </LinearLayout>
+
+    <!-- 고장 진단 배너 (탭하면 네트워크 상태 진단) -->
+    <TextView android:id="@+id/faultBanner"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:background="#DD8A1A1A"
+        android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"
+        android:gravity="center"
+        android:paddingTop="8dp" android:paddingBottom="8dp"
+        android:layout_marginBottom="4dp"
+        android:clickable="true" android:focusable="true"
+        android:visibility="gone"/>
+
+    <!-- 전원/배터리 경고 배너 -->
+    <TextView android:id="@+id/powerBanner"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:background="#DD7A4A0A"
+        android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"
+        android:gravity="center"
+        android:paddingTop="8dp" android:paddingBottom="8dp"
+        android:layout_marginBottom="4dp"
+        android:visibility="gone"/>
 
     <!-- 4분할 그리드 -->
     <LinearLayout

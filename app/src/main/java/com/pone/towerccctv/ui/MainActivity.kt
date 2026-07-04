@@ -2,11 +2,19 @@ package com.pone.towerccctv.ui
 
 import android.content.Intent
 import android.graphics.Bitmap
+import android.content.Context
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
+import com.pone.towerccctv.PowerMonitor
+import com.pone.towerccctv.UsageLogger
+import com.pone.towerccctv.BatteryProfile
+import com.pone.towerccctv.controller.CameraPowerController
+import com.pone.towerccctv.trustSelfSignedCam
+import com.pone.towerccctv.Watchdog
 import android.speech.tts.TextToSpeech
 import android.view.TextureView
 import android.view.View
@@ -57,12 +65,35 @@ class MainActivity : AppCompatActivity() {
             val now = java.util.Calendar.getInstance()
             val h = "%02d".format(now.get(java.util.Calendar.HOUR_OF_DAY))
             val m = "%02d".format(now.get(java.util.Calendar.MINUTE))
-            if (::b.isInitialized) b.tvClock.text = "$h:$m"
+            if (::b.isInitialized && !isSleeping()) { b.tvClock.text = "$h:$m"; updateSignalBadge(); updateBitrates() }
             handler.postDelayed(this, 1000L)
         }
     }
     private val reconnectJobs = arrayOfNulls<Runnable>(4)
     private var tts: TextToSpeech? = null
+
+    // ── 전원/배터리 + 절전(시동 OFF)·복귀(시동 ON) ──
+    private var powerMonitor: PowerMonitor? = null
+    private var wakeLock: PowerManager.WakeLock? = null
+    private val powerBannerToken = Any()
+    private fun isSleeping() = powerMonitor?.sleeping == true
+    // 사용 로그 전이 추적
+    private val camDown = BooleanArray(4)
+    private val camDownSince = LongArray(4)
+    private var lastBatteryLogged = -1
+    private var wifiBadLogged = false
+    private var lastSnapshotMs = 0L
+    private val sleepOverlay: TextView by lazy {
+        TextView(this).apply {
+            setBackgroundColor(Color.BLACK)
+            setTextColor(Color.parseColor("#666666"))
+            textSize = 18f
+            gravity = android.view.Gravity.CENTER
+            text = "🌙  절전 모드\n\n시동(전원)을 켜면 자동으로 깨어납니다"
+            visibility = View.GONE
+            isClickable = true
+        }
+    }
 
     private var ocrEngine: OcrEngine? = null
     private var ocrChannelIndex = -1
@@ -74,9 +105,21 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        // 시동 ON 복귀 시 화면을 켤 수 있도록 (절전 후 자동 깨우기)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true); setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
+        }
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
         setFullscreen()
+        addContentView(sleepOverlay, android.view.ViewGroup.LayoutParams(
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT))
+        startPowerMonitor()
         alertDb = AlertDatabase(this)
 
         vlcList   = listOf(b.vlc0, b.vlc1, b.vlc2, b.vlc3)
@@ -104,7 +147,11 @@ class MainActivity : AppCompatActivity() {
             popup.menu.add(0, 3, 2, "📡  OCR / 계측 설정")
             popup.menu.add(0, 7, 3, "📸  OCR 캡처(30초 저장)")
             popup.menu.add(0, 5, 4, "🕐  카메라 시간 동기화")
-            popup.menu.add(0, 6, 5, "📊  경보 이력 조회")
+            popup.menu.add(0, 9, 5, "🛠  카메라 자동 최적화")
+            popup.menu.add(0, 12, 5, "🔋  카메라 전원 (무선)")
+            popup.menu.add(0, 6, 6, "📊  경보 이력 조회")
+            popup.menu.add(0, 11, 7, "📈  사용 로그 보기")
+            popup.menu.add(0, 10, 8, "🌙  지금 절전 (시동 OFF 모의)")
             popup.setOnMenuItemClickListener { item ->
                 when (item.itemId) {
                     1 -> startActivity(Intent(this, DeviceListActivity::class.java))
@@ -127,6 +174,10 @@ class MainActivity : AppCompatActivity() {
                         }.show()
                     }
                     5 -> syncCameraTime()
+                    9 -> optimizeCameras()
+                    12 -> showCameraPower()
+                    11 -> showUsageLog()
+                    10 -> powerMonitor?.forceSleep()
                     6 -> startActivity(Intent(this, AlertHistoryActivity::class.java))
                     7 -> {
                         if (ocrEngine != null && OcrSettings.isOcrEnabled(this)) {
@@ -147,10 +198,280 @@ class MainActivity : AppCompatActivity() {
             AlertDialog.Builder(this)
                 .setTitle("종료")
                 .setMessage("앱을 종료하시겠습니까?")
-                .setPositiveButton("종료") { _, _ -> finishAffinity() }
+                .setPositiveButton("종료") { _, _ ->
+                    if (BatteryProfile.isEnabled(this)) {
+                        CameraPowerController.setOutput(false)   // 배터리 OFF 신호 전송
+                        AlertDialog.Builder(this)
+                            .setTitle("카메라 배터리 OFF")
+                            .setMessage("카메라 배터리 OFF 신호를 보냈습니다.\n앱을 종료합니다.")
+                            .setCancelable(false)
+                            .setPositiveButton("확인") { _, _ -> CameraPowerController.stop(); finishAffinity() }
+                            .show()
+                    } else finishAffinity()
+                }
                 .setNegativeButton("취소", null)
                 .show()
         }
+        b.tvSignal.setOnClickListener { showNetworkDialog() }
+        b.faultBanner.setOnClickListener { showNetworkDialog() }
+    }
+
+    // ── 무선 신호 표시 / 네트워크 진단 ──
+    private fun currentRssi(): Int? = try {
+        val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+        val info = wm.connectionInfo
+        if (info == null || info.rssi == -127 || info.rssi == Int.MIN_VALUE) null else info.rssi
+    } catch (e: Exception) { null }
+
+    private fun rssiPct(rssi: Int) = ((rssi + 90).coerceIn(0, 50) * 2).coerceIn(0, 100)
+
+    private fun updateSignalBadge() {
+        val rssi = currentRssi()
+        if (rssi == null) {
+            b.tvSignal.text = "📶 --"; b.tvSignal.setTextColor(Color.parseColor("#888888")); return
+        }
+        val color = when { rssi >= -60 -> "#4CAF50"; rssi >= -72 -> "#FFC107"; else -> "#FF5252" }
+        b.tvSignal.text = "📶 ${rssiPct(rssi)}%"
+        b.tvSignal.setTextColor(Color.parseColor(color))
+    }
+
+    private fun netHeaderText(): String {
+        val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+        val info = try { wm.connectionInfo } catch (e: Exception) { null }
+        val rssi = info?.rssi
+        val ssidRaw = info?.ssid?.replace("\"", "") ?: ""
+        val ssid = if (ssidRaw.isBlank() || ssidRaw.contains("unknown", true)) "연결됨" else ssidRaw
+        val q = if (rssi == null) "-" else when { rssi >= -60 -> "좋음"; rssi >= -72 -> "보통"; else -> "약함" }
+        val pct = if (rssi != null) rssiPct(rssi) else 0
+        val good = ssidPrefs().getString("goodSsid", "") ?: ""
+        val warn = if (ssidRaw.isNotEmpty() && good.isNotEmpty() && ssidRaw != good) "  ⚠ 전용 AP 아님!" else ""
+        return "AP: $ssid$warn\n신호: ${rssi ?: "-"} dBm  (${pct}%, $q)\n링크속도: ${info?.linkSpeed ?: "-"} Mbps"
+    }
+
+    private fun optimizeCameras() {
+        val devices = DeviceStore.load(this).filter { it.enabled }
+        if (devices.isEmpty()) { Toast.makeText(this, "등록된 카메라가 없습니다", Toast.LENGTH_SHORT).show(); return }
+        val hasHanwha = devices.any { it.brand == com.pone.towerccctv.model.CameraBrand.HANWHA }
+        AlertDialog.Builder(this).setTitle("🛠 카메라 자동 최적화")
+            .setMessage("${devices.size}대에 적용:\n\n[표준] 코덱 H.264·GOP30·시간동기화" +
+                    (if (hasHanwha) "·DIS" else "") + "  (화질 우선)\n\n" +
+                    "[절전] 표준 + 15fps·VBR·저비트레이트·긴GOP\n  → 카메라 배터리 절약 (화질↓)")
+            .setPositiveButton("표준") { _, _ -> runOptimize(devices, false) }
+            .setNeutralButton("절전") { _, _ -> runOptimize(devices, true) }
+            .setNegativeButton("취소", null).show()
+    }
+
+    private fun runOptimize(devices: List<com.pone.towerccctv.model.Device>, powerSave: Boolean) {
+        val tv = android.widget.TextView(this).apply {
+            setTextColor(Color.WHITE); textSize = 13f; setPadding(40, 28, 40, 16)
+            text = "적용 중... (${devices.size}대)\n잠시만 기다려 주세요"
+        }
+        AlertDialog.Builder(this).setTitle("🛠 카메라 최적화 결과 ${if (powerSave) "(절전)" else "(표준)"}").setView(tv).setPositiveButton("닫기", null).show()
+        Thread {
+            val results = devices.map { com.pone.towerccctv.CameraOptimizer.optimize(it, powerSave) }
+            val sb = StringBuilder()
+            results.forEach { r ->
+                sb.append("● ${r.name} (${r.ip})\n")
+                r.lines.forEach { sb.append("     $it\n") }
+                sb.append("\n")
+            }
+            runOnUiThread { tv.text = sb.toString().trimEnd() }
+        }.start()
+    }
+
+    private fun showNetworkDialog() {
+        val tv = android.widget.TextView(this).apply {
+            setTextColor(Color.WHITE); textSize = 14f; setPadding(48, 32, 48, 16)
+            text = netHeaderText() + "\n\n카메라 응답:\n  측정 중..."
+        }
+        AlertDialog.Builder(this)
+            .setTitle("📶 네트워크 상태")
+            .setView(tv)
+            .setPositiveButton("닫기", null)
+            .show()
+        val ipRate = HashMap<String, Float>()
+        val ipFault = HashMap<String, String>()
+        val nowNs = System.nanoTime()
+        for (i in 0 until 4) {
+            val ip = slotIp(i); if (ip.isEmpty()) continue
+            if (rateMbps[i] >= 0f) ipRate[ip] = rateMbps[i]
+            if (channels.getOrNull(i) != null && players[i] != null && (nowNs - lastHealthyNs[i]) / 1_000_000 > DOWN_ALARM_MS)
+                ipFault[ip] = faultReason[i] ?: "연결 안 됨"
+        }
+        Thread {
+            val devices = DeviceStore.load(this).filter { it.enabled }
+            val sb = StringBuilder()
+            if (devices.isEmpty()) sb.append("  등록된 카메라 없음")
+            devices.forEach { d ->
+                val fault = ipFault[d.ip]
+                if (fault != null) {
+                    sb.append("• ${d.name} (${d.ip}): ⚠ $fault\n")
+                } else {
+                    val ms = tcpPing(d.ip, d.rtspPort, 1500)
+                    val st = when { ms < 0 -> "❌ 끊김"; ms < 80 -> "🟢 양호"; ms < 250 -> "🟡 보통"; else -> "🟠 지연" }
+                    val r = ipRate[d.ip]
+                    val rateStr = if (r != null) "  ·  %.1fMbps".format(r) else ""
+                    sb.append("• ${d.name} (${d.ip}): ${if (ms < 0) "응답없음" else "${ms}ms"}  $st$rateStr\n")
+                }
+            }
+            runOnUiThread { tv.text = netHeaderText() + "\n\n카메라 응답:\n" + sb.toString() }
+        }.start()
+    }
+
+    private fun tcpPing(ip: String, port: Int, timeoutMs: Int): Long = try {
+        val t0 = System.nanoTime()
+        java.net.Socket().use { it.connect(java.net.InetSocketAddress(ip, port), timeoutMs) }
+        (System.nanoTime() - t0) / 1_000_000
+    } catch (e: Exception) { -1 }
+
+    // ── 카메라별 실시간 비트레이트(전송률) ──
+    // libVLC 가 이미 집계하는 누적 수신바이트만 1초마다 수동으로 읽어 계산 → 디코딩/렌더 경로 무영향(저지연 유지)
+    private val rateLastBytes = LongArray(4) { -1L }
+    private val rateLastNs    = LongArray(4) { 0L }
+    private val rateMbps      = FloatArray(4) { -1f }
+    private val lastDecoded   = IntArray(4) { -1 }     // 디코딩된 프레임 수(생존판정) — 네트워크죽음·디코더프리즈 모두 감지
+    private val healthyStreak = IntArray(4) { 0 }      // 연속 프레임증가 폴 수(스톨 후 버퍼배출 1폴 blip 무시용)
+
+    // 고장 진단
+    private val lastHealthyNs = LongArray(4) { 0L }
+    private val faultReason   = arrayOfNulls<String>(4)
+    private val lastProbeNs   = LongArray(4) { 0L }
+    private val DOWN_MILD_MS  = 10_000L   // 10초: 일시 지연 → 조용히 "재연결 중"(경보 X)
+    private val DOWN_ALARM_MS = 25_000L   // 25초 지속 → 진짜 장애 경보(빨강). 회복성 지연은 여기까지 안 감
+
+    private fun slotIp(i: Int): String {
+        val hb = channels.getOrNull(i)?.httpBase ?: return ""
+        return hb.substringAfter("//").substringBefore(":").substringBefore("/")
+    }
+
+    private fun readInputBytes(p: MediaPlayer): Long = try {
+        val m = p.media
+        val s = m?.stats
+        // RTSP(live555)는 access_demux → readBytes 가 0, 실제 데이터는 demuxReadBytes 에 집계됨
+        val demux = s?.demuxReadBytes ?: 0
+        val input = s?.readBytes ?: 0
+        m?.release()
+        val v = if (demux > 0) demux else input
+        if (v <= 0) -1L else (v.toLong() and 0xFFFFFFFFL)    // 부호없는 32비트(래핑 대비)
+    } catch (e: Exception) { -1L }
+
+    private fun updateBitrates() {
+        val nowNs = System.nanoTime()
+        var downCount = 0
+        val downLabels = StringBuilder()
+        for (i in 0 until 4) {
+            val ch = channels.getOrNull(i)
+            val p = players[i]
+            if (ch == null || p == null) { rateMbps[i] = -1f; rateLastBytes[i] = -1L; lastDecoded[i] = -1; healthyStreak[i] = 0; camDown[i] = false; continue }
+
+            // 통계 1회 읽기: decodedVideo(생존판정=실제 프레임) + 수신바이트(Mbps 표시)
+            var pics = -1; var bytes = -1L
+            try {
+                val m = p.media; val s = m?.stats
+                if (s != null) {
+                    pics = s.decodedVideo
+                    val demux = s.demuxReadBytes; val input = s.readBytes
+                    val v = if (demux > 0) demux else input
+                    bytes = if (v <= 0) -1L else (v.toLong() and 0xFFFFFFFFL)
+                }
+                m?.release()
+            } catch (e: Exception) {}
+
+            // 생존판정: 실제 디코딩 프레임이 늘어야 정상(네트워크죽음·디코더프리즈 모두 감지).
+            //  ※ player.time·수신바이트는 스트림 멈춰도 잠깐 흐르거나 stale → 오판 → 프레임수만 신뢰
+            //  ※ 2폴 연속 증가만 인정 — 스톨 직후 버퍼배출 1폴 blip이 타이머 리셋해 감지 지연시키는 것 방지
+            val advanced = pics >= 0 && lastDecoded[i] in 0 until pics
+            if (pics >= 0) lastDecoded[i] = pics
+            healthyStreak[i] = if (advanced) healthyStreak[i] + 1 else 0
+            val healthy = healthyStreak[i] >= 2
+
+            // Mbps 표시용 바이트 레이트 (판정엔 미사용)
+            if (bytes >= 0L) {
+                val prev = rateLastBytes[i]; val prevNs = rateLastNs[i]
+                if (prevNs > 0L && prev in 0L..bytes) {
+                    val dt = (nowNs - prevNs) / 1e9
+                    if (dt >= 0.5) { rateMbps[i] = ((bytes - prev) * 8.0 / dt / 1_000_000.0).toFloat(); rateLastBytes[i] = bytes; rateLastNs[i] = nowNs }
+                } else { rateLastBytes[i] = bytes; rateLastNs[i] = nowNs }
+            }
+
+            if (healthy) {
+                if (camDown[i]) {
+                    camDown[i] = false
+                    UsageLogger.log("cam_fault", "cam" to ch.label,
+                        "sec" to (nowNs - camDownSince[i]) / 1_000_000_000L, "reason" to (faultReason[i] ?: ""))
+                }
+                lastHealthyNs[i] = nowNs; faultReason[i] = null
+            }
+            val ip = slotIp(i)
+            val downMs = (nowNs - lastHealthyNs[i]) / 1_000_000
+            if (downMs > DOWN_ALARM_MS) {              // 25초+ 지속 = 진짜 장애 → 경보
+                downCount++
+                if (!camDown[i]) { camDown[i] = true; camDownSince[i] = nowNs; UsageLogger.log("cam_down", "cam" to ch.label) }
+                if (downLabels.isNotEmpty()) downLabels.append(", ")
+                downLabels.append(ch.label)
+                if (nowNs - lastProbeNs[i] > 8_000_000_000L) {
+                    lastProbeNs[i] = nowNs
+                    Thread { faultReason[i] = diagnoseCamera(ip) }.start()
+                }
+                setDot(i, "red")
+                ipList[i].text = "⚠ 확인 필요"           // 운전자 단순 문구 (기술 사유는 탭→진단)
+                ipList[i].setTextColor(Color.parseColor("#FF6B6B"))
+            } else if (downMs > DOWN_MILD_MS) {        // 10~25초 = 일시 지연(회복 가능) → 조용히 재연결, 경보 X
+                setDot(i, "yellow")
+                ipList[i].text = "재연결 중…"
+                ipList[i].setTextColor(Color.parseColor("#FFC107"))
+            } else {
+                ipList[i].text = if (rateMbps[i] >= 0f) "$ip   %.1fM".format(rateMbps[i]) else ip
+                ipList[i].setTextColor(Color.parseColor("#AACCFF"))
+            }
+        }
+        if (downCount > 0) {
+            b.faultBanner.visibility = View.VISIBLE
+            val ssid = currentSsid()
+            val good = ssidPrefs().getString("goodSsid", "") ?: ""
+            if (ssid.isNotEmpty() && good.isNotEmpty() && ssid != good) {
+                b.faultBanner.text = "⚠ 다른 와이파이 연결됨! 현재 '$ssid' — 전용 AP 아님 (탭하여 확인)"
+                b.faultBanner.setBackgroundColor(Color.parseColor("#DDB00030"))
+                if (!wifiBadLogged) { wifiBadLogged = true; UsageLogger.log("wifi", "k" to "wrong_ap", "ssid" to ssid) }
+            } else {
+                b.faultBanner.text = "⚠ 카메라 ${downCount}대 확인 필요 — $downLabels  (탭하여 확인)"
+                b.faultBanner.setBackgroundColor(Color.parseColor("#DD8A1A1A"))
+            }
+        } else {
+            b.faultBanner.visibility = View.GONE
+            wifiBadLogged = false
+            if (channels.isNotEmpty() && rateMbps.any { it >= 0f }) {
+                val s = currentSsid()
+                if (s.isNotEmpty()) ssidPrefs().edit().putString("goodSsid", s).apply()
+            }
+        }
+        val nowMs = System.currentTimeMillis()
+        if (nowMs - lastSnapshotMs > 5 * 60_000L) {
+            lastSnapshotMs = nowMs
+            val st = powerMonitor?.status
+            UsageLogger.log("snapshot",
+                "pct" to (st?.level ?: -1), "chg" to (st?.charging ?: false),
+                "rssi" to currentRssi(), "ssid" to currentSsid(), "down" to downCount)
+        }
+    }
+
+    private fun ssidPrefs() = getSharedPreferences("net_check", Context.MODE_PRIVATE)
+    private fun currentSsid(): String = try {
+        val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+        val s = wm.connectionInfo?.ssid?.replace("\"", "") ?: ""
+        if (s.isBlank() || s.contains("unknown", true)) "" else s
+    } catch (e: Exception) { "" }
+
+    private fun diagnoseCamera(ip: String): String {
+        if (ip.isBlank()) return "IP 없음"
+        return try {
+            java.net.Socket().use { it.connect(java.net.InetSocketAddress(ip, 554), 1500) }
+            "RTSP 오류 (코덱/계정 확인)"
+        } catch (e: java.net.ConnectException) {
+            if (e.message?.contains("refused", true) == true) "RTSP 포트 닫힘(554)" else "응답 없음 (전원·랜·IP)"
+        } catch (e: java.net.SocketTimeoutException) { "응답 없음 (전원·랜·IP)" }
+          catch (e: java.net.NoRouteToHostException) { "응답 없음 (전원·랜·IP)" }
+          catch (e: Exception) { "연결 오류" }
     }
 
     override fun onResume() {
@@ -160,6 +481,15 @@ class MainActivity : AppCompatActivity() {
         handler.removeCallbacks(clockRunnable); handler.post(clockRunnable)
         alertDb = AlertDatabase(this)
         startAll()
+        startCameraPowerIfEnabled(autoOn = true)   // 앱 실행/복귀 시 무선 전원 자동 ON (사용 설정 시)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        handler.removeCallbacks(clockRunnable)
+        // 단독뷰 전환 시(단독뷰 onResume 前) 4분할 플레이어를 미리 해제 →
+        //   플레이어 겹침으로 인한 vout 생성 실패(검은화면) 방지 + 배경 스트리밍 낭비 제거. (onStop 은 너무 늦음)
+        stopAll()
     }
 
     private fun setFullscreen() {
@@ -193,6 +523,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        powerMonitor?.stop(); powerMonitor = null
+        releaseWakeLock()
+        CameraPowerController.onUpdate = null; CameraPowerController.stop()
         // ★ 카메라 OSD 텍스트 제거 (잘못된 값이 영상에 박히는 것 방지)
         try { sendEmptyPosOsd() } catch (e: Exception) {}
         stopAll()
@@ -204,7 +537,278 @@ class MainActivity : AppCompatActivity() {
 
     private fun restartAll() { stopAll(); startAll() }
 
+    private fun showUsageLog() {
+        val tv = TextView(this).apply {
+            setTextColor(Color.WHITE); textSize = 13f; setPadding(40, 28, 40, 16); text = "집계 중..."
+        }
+        val sv = android.widget.ScrollView(this).apply { addView(tv) }
+        AlertDialog.Builder(this).setTitle("📈 사용 로그").setView(sv).setPositiveButton("닫기", null).show()
+        Thread { val s = UsageLogger.summary(7); runOnUiThread { tv.text = s } }.start()
+    }
+
+    // ── 전원/배터리 감시 + 절전/복귀 ──
+    private fun startPowerMonitor() {
+        if (powerMonitor != null) return
+        powerMonitor = PowerMonitor(this,
+            onEvent  = { kind, msg -> runOnUiThread { onPowerEvent(kind, msg) } },
+            onStatus = { st -> runOnUiThread { updateBattery(st) } },
+            onSleep  = { runOnUiThread { enterSleep() } },
+            onWake   = { runOnUiThread { wakeUp() } }
+        ).also { it.start() }
+    }
+
+    private fun updateBattery(st: PowerMonitor.Status) {
+        if (!::b.isInitialized) return
+        val icon = if (st.charging) "⚡" else "🔋"
+        val color = when {
+            st.level <= 15 -> "#FF5252"
+            st.level <= 30 -> "#FFC107"
+            st.charging    -> "#4CAF50"
+            else           -> "#AAAAAA"
+        }
+        b.tvBattery.text = "$icon ${st.level}%"
+        b.tvBattery.setTextColor(Color.parseColor(color))
+        if (st.level != lastBatteryLogged) {
+            lastBatteryLogged = st.level
+            UsageLogger.log("battery", "pct" to st.level, "chg" to st.charging, "tC" to st.tempC.toInt())
+        }
+    }
+
+    private fun onPowerEvent(kind: PowerMonitor.Kind, msg: String) {
+        if (msg.isBlank()) return
+        android.util.Log.d("Power", "[$kind] $msg")
+        UsageLogger.log("power", "kind" to kind.name, "msg" to msg)
+        if (kind == PowerMonitor.Kind.INFO) return
+        b.powerBanner.visibility = View.VISIBLE
+        b.powerBanner.text = "${if (kind == PowerMonitor.Kind.CRIT) "🔴" else "⚠"}  $msg"
+        b.powerBanner.setBackgroundColor(Color.parseColor(if (kind == PowerMonitor.Kind.CRIT) "#DD8A1A1A" else "#DD7A4A0A"))
+        beep()
+        handler.removeCallbacksAndMessages(powerBannerToken)
+        handler.postAtTime({ b.powerBanner.visibility = View.GONE },
+            powerBannerToken, android.os.SystemClock.uptimeMillis() + 12000L)
+    }
+
+    private fun beep() {
+        try {
+            val tg = android.media.ToneGenerator(android.media.AudioManager.STREAM_ALARM, 90)
+            tg.startTone(android.media.ToneGenerator.TONE_PROP_BEEP2, 400)
+            handler.postDelayed({ tg.release() }, 600L)
+        } catch (e: Exception) {}
+    }
+
+    /** 시동 OFF N분 → 절전: 영상·감지 중지 + 화면 어둡게/꺼지게 (배터리 보존). 기기는 살아있음. */
+    private fun enterSleep() {
+        android.util.Log.w("Power", "절전 진입")
+        UsageLogger.log("sleep")
+        Watchdog.setSleeping(true)
+        sleepOverlay.visibility = View.VISIBLE
+        sleepOverlay.bringToFront()
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.attributes = window.attributes.apply { screenBrightness = 0.01f }
+        try { sendEmptyPosOsd() } catch (e: Exception) {}
+        ocrEngine?.stopLoop()
+        stopAll()
+        if (BatteryProfile.isEnabled(this)) CameraPowerController.setOutput(false)   // 절전 시 카메라 배터리 OFF
+    }
+
+    /** 시동 ON → 복귀: 화면 켜고 영상·감지 재개. */
+    private fun wakeUp() {
+        android.util.Log.w("Power", "복귀(깨우기)")
+        UsageLogger.log("wake")
+        Watchdog.setSleeping(false)
+        acquireWakeLock()
+        try {
+            startActivity(Intent(this, MainActivity::class.java).addFlags(
+                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        } catch (_: Exception) {}
+        sleepOverlay.visibility = View.GONE
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.attributes = window.attributes.apply { screenBrightness = -1f }
+        setFullscreen()
+        startAll()
+        startCameraPowerIfEnabled(autoOn = true)   // 복귀 시 카메라 배터리 ON
+        handler.postDelayed({ releaseWakeLock() }, 4000L)
+    }
+
+    // ── 카메라 전원(무선) — 상태 표시/알람 공통 처리 ──
+    private var powerDialogRender: ((Boolean, CameraPowerController.Status?) -> Unit)? = null
+    private var lastPowerAlarmMs = 0L
+
+    private fun onPowerUpdate(connected: Boolean, st: CameraPowerController.Status?) {
+        val tvc = b.tvCamBattery
+        if (BatteryProfile.isEnabled(this)) {
+            if (st != null) {
+                val v = BatteryProfile.evaluate(this, st.volts)
+                val out = if (st.relayOn) "⚡ON" else "⛔OFF"
+                tvc.text = "🔋$out %.1fV %s".format(st.volts, v.text) + (if (!connected) " ⚠끊김" else "")
+                tvc.setTextColor(if (v.level >= 2) Color.parseColor("#FF6B6B") else if (v.level == 1) Color.parseColor("#FFC107") else Color.parseColor("#8FE388"))
+            } else {
+                tvc.text = if (connected) "🔋 카메라 대기" else "🔋 TX 미연결"
+                tvc.setTextColor(Color.parseColor("#AAAAAA"))
+            }
+            tvc.visibility = View.VISIBLE
+        } else tvc.visibility = View.GONE
+        if (st != null && BatteryProfile.isEnabled(this)) {
+            val v = BatteryProfile.evaluate(this, st.volts)
+            if (v.level >= 1) {
+                val now = System.currentTimeMillis()
+                if (now - lastPowerAlarmMs > 60_000L) {
+                    lastPowerAlarmMs = now
+                    val msg = if (v.level >= 2) "⚠ 카메라 배터리 긴급! %.1fV — 즉시 충전/교체".format(st.volts)
+                              else "⚠ 카메라 배터리 %s · %.1fV — 충전/교체 필요".format(v.text, st.volts)
+                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+                    try { val tg = android.media.ToneGenerator(android.media.AudioManager.STREAM_ALARM, 100)
+                          tg.startTone(android.media.ToneGenerator.TONE_PROP_BEEP2); handler.postDelayed({ tg.release() }, 800) } catch (_: Exception) {}
+                }
+            }
+        }
+        powerDialogRender?.invoke(connected, st)
+    }
+
+    private fun startCameraPowerIfEnabled(autoOn: Boolean) {
+        if (!BatteryProfile.isEnabled(this)) { b.tvCamBattery.visibility = View.GONE; return }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S &&
+            checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        CameraPowerController.onUpdate = { c, s -> runOnUiThread { onPowerUpdate(c, s) } }
+        CameraPowerController.ensure(this)
+        if (autoOn) CameraPowerController.setOutput(true)
+        onPowerUpdate(CameraPowerController.isConnected(), CameraPowerController.lastStatus)
+    }
+
+    private fun showCameraPower() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            val need = arrayOf(android.Manifest.permission.BLUETOOTH_SCAN, android.Manifest.permission.BLUETOOTH_CONNECT)
+                .filter { checkSelfPermission(it) != android.content.pm.PackageManager.PERMISSION_GRANTED }
+            if (need.isNotEmpty()) { requestPermissions(need.toTypedArray(), 77); return }
+        }
+        val ctx = this
+        val tv = android.widget.TextView(ctx).apply { setTextColor(Color.WHITE); textSize = 15f; setPadding(48, 24, 48, 16) }
+        val chkEnable = android.widget.CheckBox(ctx).apply { text = "무선 전원제어 사용"; setTextColor(Color.WHITE); isChecked = BatteryProfile.isEnabled(ctx) }
+        val btnOn  = android.widget.Button(ctx).apply { text = "전원 ON" }
+        val btnOff = android.widget.Button(ctx).apply { text = "전원 OFF (절전)" }
+        val btnSet = android.widget.Button(ctx).apply { text = "🔧 배터리 설정" }
+        val btnForget = android.widget.Button(ctx).apply { text = "TX 재검색(연결 초기화)" }
+        val ll = android.widget.LinearLayout(ctx).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(24, 8, 24, 8)
+            addView(chkEnable); addView(tv); addView(btnOn); addView(btnOff); addView(btnSet); addView(btnForget)
+        }
+        fun render(connected: Boolean, st: CameraPowerController.Status?) {
+            val sb = StringBuilder()
+            sb.append(if (connected) "🟢 운전실 TX 연결됨\n" else "🔴 운전실 TX 미연결\n")
+            if (st != null) {
+                sb.append(if (st.rxLinked) "🟢 배터리 RX 연결됨\n" else "🔴 배터리 RX 응답 없음\n")
+                sb.append("카메라 전원: ${if (st.relayOn) "ON ⚡" else "OFF ⛔"}\n")
+                val v = BatteryProfile.evaluate(ctx, st.volts)
+                sb.append("배터리: %.2fV\n".format(st.volts))
+                sb.append("잔량: ${v.text}")
+            } else sb.append("(상태 수신 대기)")
+            tv.text = sb.toString()
+        }
+        powerDialogRender = { c, s -> render(c, s) }
+        startCameraPowerIfEnabled(autoOn = false)
+        render(CameraPowerController.isConnected(), CameraPowerController.lastStatus)
+        chkEnable.setOnCheckedChangeListener { _, on ->
+            BatteryProfile.setEnabled(ctx, on)
+            if (on) startCameraPowerIfEnabled(autoOn = true) else { CameraPowerController.stop(); b.tvCamBattery.visibility = View.GONE }
+        }
+        btnOn.setOnClickListener { CameraPowerController.setOutput(true) }
+        btnOff.setOnClickListener {
+            AlertDialog.Builder(ctx).setMessage("카메라 배터리 출력을 차단합니다.\n(카메라가 꺼집니다) 계속할까요?")
+                .setPositiveButton("차단") { _, _ -> CameraPowerController.setOutput(false) }
+                .setNegativeButton("취소", null).show()
+        }
+        btnSet.setOnClickListener { showBatterySettings() }
+        btnForget.setOnClickListener {
+            CameraPowerController.forget(ctx)
+            Toast.makeText(ctx, "TX 연결 초기화됨 — 다시 검색합니다", Toast.LENGTH_SHORT).show()
+            if (BatteryProfile.isEnabled(ctx)) startCameraPowerIfEnabled(autoOn = false)
+        }
+        AlertDialog.Builder(ctx).setTitle("🔋 카메라 전원 (무선)").setView(ll)
+            .setPositiveButton("닫기", null)
+            .setOnDismissListener { powerDialogRender = null }
+            .show()
+    }
+
+    private fun showBatterySettings() {
+        val ctx = this
+        val cur = BatteryProfile.type(ctx)
+        val types = BatteryProfile.Type.values()
+        val ll = android.widget.LinearLayout(ctx).apply { orientation = android.widget.LinearLayout.VERTICAL; setPadding(48, 24, 48, 8) }
+        fun label(t: String) = android.widget.TextView(ctx).apply { text = t; setTextColor(Color.parseColor("#AACCFF")); textSize = 13f; setPadding(0, 16, 0, 4) }
+        ll.addView(label("배터리 종류"))
+        val spinner = android.widget.Spinner(ctx)
+        spinner.adapter = android.widget.ArrayAdapter(ctx, android.R.layout.simple_spinner_dropdown_item, types.map { it.label })
+        spinner.setSelection(types.indexOf(cur))
+        ll.addView(spinner)
+        ll.addView(label("용량 (Ah)"))
+        val capEt = android.widget.EditText(ctx).apply {
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER; setText(BatteryProfile.capacityAh(ctx).toString()); setTextColor(Color.WHITE)
+        }
+        ll.addView(capEt)
+        val thBox = android.widget.LinearLayout(ctx).apply { orientation = android.widget.LinearLayout.VERTICAL }
+        ll.addView(thBox)
+        val thFields = HashMap<String, android.widget.EditText>()
+        fun rebuildThresholds() {
+            thBox.removeAllViews(); thFields.clear()
+            thBox.addView(label("전압 임계값 (V)"))
+            BatteryProfile.getThresholdsV(ctx).forEach { (k, v) ->
+                val row = android.widget.LinearLayout(ctx).apply { orientation = android.widget.LinearLayout.HORIZONTAL }
+                row.addView(android.widget.TextView(ctx).apply { text = k; setTextColor(Color.WHITE); width = 320 })
+                val et = android.widget.EditText(ctx).apply {
+                    inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+                    setText("%.2f".format(v)); setTextColor(Color.WHITE)
+                    layoutParams = android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                }
+                thFields[k] = et; row.addView(et); thBox.addView(row)
+            }
+        }
+        rebuildThresholds()
+        spinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: android.widget.AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                if (types[pos] != BatteryProfile.type(ctx)) { BatteryProfile.setType(ctx, types[pos]); rebuildThresholds() }
+            }
+            override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
+        }
+        val scroll = android.widget.ScrollView(ctx).apply { addView(ll) }
+        AlertDialog.Builder(ctx).setTitle("🔧 배터리 설정").setView(scroll)
+            .setPositiveButton("저장") { _, _ ->
+                capEt.text.toString().toIntOrNull()?.let { BatteryProfile.setCapacity(ctx, it) }
+                val vals = HashMap<String, Float>()
+                thFields.forEach { (k, et) -> et.text.toString().toFloatOrNull()?.let { vals[k] = it } }
+                BatteryProfile.setThresholdsV(ctx, vals)
+                Toast.makeText(ctx, "배터리 설정 저장됨", Toast.LENGTH_SHORT).show()
+                onPowerUpdate(CameraPowerController.isConnected(), CameraPowerController.lastStatus)
+            }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 77 && grantResults.isNotEmpty() && grantResults.all { it == android.content.pm.PackageManager.PERMISSION_GRANTED }) {
+            showCameraPower()
+        }
+    }
+
+    private fun acquireWakeLock() {
+        try {
+            if (wakeLock?.isHeld == true) return
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            @Suppress("DEPRECATION")
+            wakeLock = pm.newWakeLock(
+                PowerManager.FULL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
+                "tower:wake").apply { acquire(8000L) }
+        } catch (e: Exception) { android.util.Log.e("Power", "wakelock 실패: ${e.message}") }
+    }
+
+    private fun releaseWakeLock() {
+        try { if (wakeLock?.isHeld == true) wakeLock?.release() } catch (_: Exception) {}
+        wakeLock = null
+    }
+
     private fun startAll() {
+        if (isSleeping()) return   // 절전 중에는 스트림을 켜지 않음
         val devices = DeviceStore.load(this).filter { it.enabled }
         channels = devices.flatMap { it.toChannels() }.take(4)
         ocrChannelIndex = channels.size - 1
@@ -218,6 +822,7 @@ class MainActivity : AppCompatActivity() {
                 setDot(i, "gray")
                 touchList[i].setOnClickListener { openPlayer(i) }
                 startStream(i, ch)
+                lastHealthyNs[i] = System.nanoTime()   // 최초 연결 grace(여기서만) → 이후 판정은 실제 프레임으로
             } else {
                 vlcList[i].visibility = View.INVISIBLE
                 touchList[i].setOnClickListener(null)
@@ -255,17 +860,23 @@ class MainActivity : AppCompatActivity() {
         players[idx] = null
 
         setDot(idx, "yellow")
+        faultReason[idx] = null
+        lastDecoded[idx] = -1; healthyStreak[idx] = 0; rateLastBytes[idx] = -1L; rateLastNs[idx] = 0L   // 판정 기준 재설정
+        // ※ grace(lastHealthyNs)는 여기서 리셋하지 않음 — 재연결이 죽은 카메라를 '정상'으로 은폐하기 때문. grace는 startAll에서 최초 1회만.
 
         val player = MediaPlayer(libVLC)
         players[idx] = player
         player.attachViews(vlcList[idx], null, true, false)
         player.videoScale = MediaPlayer.ScaleType.SURFACE_FIT_SCREEN  // 화면 꽉 채움(검은 띠 제거, 가장자리 크롭)
 
-        val url = ch.toSubStreamUrl()
+        val url = ch.subUrl   // 브랜드별 서브스트림 (Device.toChannels 에서 생성)
         val media = Media(libVLC, Uri.parse(url))
         media.setHWDecoderEnabled(false, false)
-        media.addOption(":network-caching=300")
+        media.addOption(":network-caching=100")  // 단독뷰와 동일: 지연 단축
         media.addOption(":rtsp-tcp")
+        media.addOption(":clock-jitter=0")
+        media.addOption(":clock-synchro=0")
+        media.addOption(":no-audio")
         player.media = media
         media.release()
         player.play()
@@ -291,12 +902,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun scheduleReconnect(idx: Int, ch: Channel) {
+        if (isSleeping()) return   // 절전 중 재연결 금지
         reconnectJobs[idx]?.let { handler.removeCallbacks(it) }
         val job = Runnable {
-            if (!isDestroyed && !isFinishing) startStream(idx, ch)
+            if (!isDestroyed && !isFinishing && !isSleeping()) startStream(idx, ch)
         }
         reconnectJobs[idx] = job
-        handler.postDelayed(job, 5000L)
+        handler.postDelayed(job, 1500L)   // 일시적 0.0.0.0 등 빠른 복구(6초 팔트배너 전에)
     }
 
     private fun startOcrLoop() {
@@ -409,6 +1021,7 @@ class MainActivity : AppCompatActivity() {
                 putExtra("hasPtz",     ch.hasPtz)
                 putExtra("ptzChannel", ch.ptzChannel)
                 putExtra("deviceType", ch.deviceType.name)
+                putExtra("brand",      ch.brand.name)
                 snapPath?.let { putExtra("snapPath", it) }
             })
             overridePendingTransition(0, 0)
@@ -448,12 +1061,13 @@ class MainActivity : AppCompatActivity() {
 </Time>"""
 
         var successCount = 0
-        var failCount = 0
         var doneCount = 0
+        val failLines = java.util.Collections.synchronizedList(mutableListOf<String>())
 
         devices.forEach { dev ->
             Thread {
-                val ok = try {
+                // 사유: null=성공, 그 외=실패 사유(운전자/설치자용 문구)
+                val fail: String? = try {
                     val authCache = java.util.concurrent.ConcurrentHashMap<String,
                             com.burgstaller.okhttp.digest.CachingAuthenticator>()
                     val creds = com.burgstaller.okhttp.digest.Credentials(dev.username, dev.password)
@@ -466,27 +1080,64 @@ class MainActivity : AppCompatActivity() {
                         .readTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
                         .authenticator(com.burgstaller.okhttp.CachingAuthenticatorDecorator(auth, authCache))
                         .addInterceptor(com.burgstaller.okhttp.AuthenticationCacheInterceptor(authCache))
+                        .trustSelfSignedCam()   // 한화 HTTPS 자체서명 신뢰
                         .build()
-                    val mediaType = "application/xml".toMediaType()
-                    val body = okhttp3.RequestBody.create(mediaType, timeXml)
-                    val req = okhttp3.Request.Builder()
-                        .url("http://${dev.ip}/ISAPI/System/time")
-                        .put(body).build()
-                    val resp = client.newCall(req).execute()
-                    resp.code in 200..299
+                    // ★장치관리에 설정된 브랜드 프로토콜로 분기 (하드코딩 X)
+                    val code: Int; var bad = false
+                    when (dev.brand) {
+                        com.pone.towerccctv.model.CameraBrand.HANWHA -> {
+                            val q = "SyncType=Manual&Year=$year&Month=$month&Day=$day&Hour=$hour&Minute=$min&Second=$sec"
+                            client.newCall(okhttp3.Request.Builder()
+                                .url("https://${dev.ip}/stw-cgi/system.cgi?msubmenu=date&action=set&$q").get().build())
+                                .execute().use { code = it.code; bad = (it.body?.string() ?: "").contains("NG", true) }
+                        }
+                        com.pone.towerccctv.model.CameraBrand.DAHUA -> {
+                            val ts = java.net.URLEncoder.encode(
+                                "%04d-%02d-%02d %02d:%02d:%02d".format(year, month, day, hour, min, sec), "UTF-8")
+                            client.newCall(okhttp3.Request.Builder()
+                                .url("http://${dev.ip}/cgi-bin/global.cgi?action=setCurrentTime&time=$ts").get().build())
+                                .execute().use { code = it.code }
+                        }
+                        else -> {   // HIKVISION / IDIS : ISAPI
+                            val body = okhttp3.RequestBody.create("application/xml".toMediaType(), timeXml)
+                            client.newCall(okhttp3.Request.Builder()
+                                .url("http://${dev.ip}/ISAPI/System/time").put(body).build())
+                                .execute().use { code = it.code }
+                        }
+                    }
+                    when {
+                        code in 200..299 && !bad -> null
+                        code == 401 || code == 403 -> "아이디/비밀번호 확인"
+                        code == 404 -> "브랜드 설정 확인"      // 이 브랜드에 없는 경로 → 등록 브랜드 오류
+                        else -> "카메라 응답 오류($code)"
+                    }
+                } catch (e: java.net.SocketTimeoutException) {
+                    "연결 안 됨(응답 없음)"
+                } catch (e: java.net.ConnectException) {
+                    "연결 안 됨(네트워크)"
                 } catch (e: Exception) {
-                    false
+                    "연결 안 됨"
                 }
 
                 synchronized(this) {
-                    if (ok) successCount++ else failCount++
+                    if (fail == null) successCount++
+                    else failLines.add("• ${dev.name} (${dev.ip}) — $fail")
                     doneCount++
                     if (doneCount == devices.size) {
                         handler.post {
-                            Toast.makeText(this,
-                                "시간 동기화 완료: ✅ ${successCount}대 성공" +
-                                        if (failCount > 0) "  ❌ ${failCount}대 실패" else "",
-                                Toast.LENGTH_LONG).show()
+                            if (failLines.isEmpty()) {
+                                Toast.makeText(this,
+                                    "✅ 시간 동기화 완료: ${successCount}대 모두 성공",
+                                    Toast.LENGTH_LONG).show()
+                            } else {
+                                // 실패가 있으면 사유를 다이얼로그로 명확히 (운전자가 즉시 조치)
+                                android.app.AlertDialog.Builder(this)
+                                    .setTitle("시간 동기화 결과")
+                                    .setMessage("✅ 성공 ${successCount}대\n❌ 실패 ${failLines.size}대\n\n"
+                                            + failLines.joinToString("\n"))
+                                    .setPositiveButton("확인", null)
+                                    .show()
+                            }
                         }
                     }
                 }
@@ -735,4 +1386,3 @@ class MainActivity : AppCompatActivity() {
 }
 
 private fun Channel.extractIp() = httpBase.substringAfter("//").substringBefore(":").substringBefore("/")
-private fun Channel.toSubStreamUrl() = if (rtspUrl.endsWith("1")) rtspUrl.dropLast(1) + "2" else rtspUrl

@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import com.pone.towerccctv.model.CameraBrand
 import com.pone.towerccctv.model.Device
 import com.pone.towerccctv.model.DeviceStore
 import com.pone.towerccctv.model.DeviceType
@@ -15,6 +16,9 @@ class AddDeviceActivity : AppCompatActivity() {
 
     private lateinit var devType: DeviceType
     private var editId: String? = null
+
+    private var selectedBrand = CameraBrand.HIKVISION
+    private val brandBtnViews = mutableMapOf<CameraBrand, Button>()
 
     // 입력 필드들
     private lateinit var etName:     EditText
@@ -57,6 +61,30 @@ class AddDeviceActivity : AppCompatActivity() {
         }
         layout.addView(tvType)
 
+        // 제조사(브랜드) 선택 — RTSP 경로·PTZ 프로토콜이 브랜드별로 자동 적용됨
+        layout.addView(TextView(this).apply {
+            text = "제조사"; setTextColor(Color.parseColor("#888888")); textSize = 11f
+            setPadding(0, 8, 0, 2)
+        })
+        val brandRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        linkedMapOf(
+            CameraBrand.HIKVISION to "하이크비전",
+            CameraBrand.DAHUA     to "다후아",
+            CameraBrand.HANWHA    to "한화비전",
+            CameraBrand.IDIS      to "아이디스"
+        ).forEach { (brand, nm) ->
+            val btn = Button(this).apply {
+                text = nm; textSize = 12f; isAllCaps = false; setTextColor(Color.WHITE)
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    .also { it.rightMargin = 4 }
+                setOnClickListener { selectedBrand = brand; highlightBrand() }
+            }
+            brandBtnViews[brand] = btn
+            brandRow.addView(btn)
+        }
+        layout.addView(brandRow)
+        highlightBrand()
+
         // 필드 생성 헬퍼
         fun field(label: String, hint: String, defVal: String = "", numeric: Boolean = false): EditText {
             layout.addView(TextView(this).apply {
@@ -92,8 +120,8 @@ class AddDeviceActivity : AppCompatActivity() {
         etHttpPort = field("HTTP 포트", "80", "80",  numeric = true)
         etUser     = field("사용자명", "admin",
                         if (isNew) "admin" else "admin")
-        etPass     = field("비밀번호", "1234qwer@",
-                        if (isNew) "1234qwer@" else "")
+        etPass     = field("비밀번호", "카메라 비밀번호 입력",
+                        "")   // 보안상 실제 비번 프리필 제거 — 설치 시 직접 입력
 
         // NVR 전용: 채널 수
         if (devType == DeviceType.NVR) {
@@ -122,8 +150,8 @@ class AddDeviceActivity : AppCompatActivity() {
 
         // 안내 텍스트
         layout.addView(TextView(this).apply {
-            text = "※ Hikvision 기본 포트: RTSP=554, HTTP=80\n" +
-                   "※ NVR 채널 수: 테스트=16, 납품=4\n" +
+            text = "※ 제조사 선택 시 RTSP 경로·PTZ가 자동 적용 (하이크/다후아/한화/아이디스)\n" +
+                   "※ 기본 포트: RTSP=554, HTTP=80  ·  NVR 채널 수: 테스트=16, 납품=4\n" +
                    "※ 카메라 SD카드 재생은 직접 접속만 지원"
             setTextColor(Color.parseColor("#555555")); textSize = 10f
             setPadding(0, 16, 0, 16)
@@ -150,7 +178,15 @@ class AddDeviceActivity : AppCompatActivity() {
         }
     }
 
+    private fun highlightBrand() {
+        brandBtnViews.forEach { (b, v) ->
+            v.setBackgroundColor(
+                if (b == selectedBrand) Color.parseColor("#1E5FAA") else Color.parseColor("#2A2A2E"))
+        }
+    }
+
     private fun fillForm(dev: Device) {
+        selectedBrand = dev.brand; highlightBrand()
         etName.setText(dev.name)
         etIp.setText(dev.ip)
         etRtspPort.setText(dev.rtspPort.toString())
@@ -179,6 +215,7 @@ class AddDeviceActivity : AppCompatActivity() {
             id           = editId ?: java.util.UUID.randomUUID().toString(),
             name         = name,
             type         = devType,
+            brand        = selectedBrand,
             ip           = ip,
             rtspPort     = etRtspPort.text.toString().toIntOrNull() ?: 554,
             httpPort     = etHttpPort.text.toString().toIntOrNull() ?: 80,
