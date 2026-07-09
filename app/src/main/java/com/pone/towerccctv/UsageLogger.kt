@@ -60,8 +60,6 @@ object UsageLogger {
         } catch (_: Exception) {}
     }
 
-    fun usageDirPath(): String = dir?.absolutePath ?: "(미초기화)"
-
     fun summary(days: Int = 7): String {
         flush()
         val d = dir ?: return "로그 없음"

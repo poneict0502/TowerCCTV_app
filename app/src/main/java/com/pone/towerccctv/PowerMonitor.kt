@@ -32,7 +32,6 @@ class PowerMonitor(
     @Volatile var sleeping = false; private set
 
     private val handler = Handler(Looper.getMainLooper())
-    private var disconnectedAt = 0L
     private var lowAlertFloor = 101
     private var lastRiseLevel = -1
     private var lastRiseAt = 0L
@@ -64,7 +63,6 @@ class PowerMonitor(
         })
         sticky?.let { onBattery(it) }
         if (!status.charging) {
-            disconnectedAt = now()
             handler.postDelayed(sleepRunnable, sleepDelayMs())
         }
         handler.post(tick)
@@ -89,14 +87,12 @@ class PowerMonitor(
     private fun sleepDelayMs(): Long = sleepDelayMin() * 60_000L
 
     private fun onDisconnected() {
-        disconnectedAt = now()
         onEvent(Kind.INFO, "전원 분리됨 — ${sleepDelayMin()}분 뒤 절전")
         handler.removeCallbacks(sleepRunnable)
         handler.postDelayed(sleepRunnable, sleepDelayMs())
     }
 
     private fun onConnected() {
-        disconnectedAt = 0L
         handler.removeCallbacks(sleepRunnable)
         onEvent(Kind.INFO, "전원 연결됨")
         if (sleeping) { sleeping = false; onWake() }
@@ -113,7 +109,7 @@ class PowerMonitor(
         onStatus(status)
 
         if (charging && sleeping) {
-            sleeping = false; disconnectedAt = 0L
+            sleeping = false
             handler.removeCallbacks(sleepRunnable)
             onEvent(Kind.INFO, "충전 감지 — 복귀")
             onWake()

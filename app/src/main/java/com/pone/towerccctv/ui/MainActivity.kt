@@ -346,17 +346,6 @@ class MainActivity : AppCompatActivity() {
         return hb.substringAfter("//").substringBefore(":").substringBefore("/")
     }
 
-    private fun readInputBytes(p: MediaPlayer): Long = try {
-        val m = p.media
-        val s = m?.stats
-        // RTSP(live555)는 access_demux → readBytes 가 0, 실제 데이터는 demuxReadBytes 에 집계됨
-        val demux = s?.demuxReadBytes ?: 0
-        val input = s?.readBytes ?: 0
-        m?.release()
-        val v = if (demux > 0) demux else input
-        if (v <= 0) -1L else (v.toLong() and 0xFFFFFFFFL)    // 부호없는 32비트(래핑 대비)
-    } catch (e: Exception) { -1L }
-
     private fun updateBitrates() {
         val nowNs = System.nanoTime()
         var downCount = 0

@@ -65,8 +65,6 @@ object CameraPowerController {
 
     /** 원하는 출력 상태 설정 + 즉시 전송 */
     fun setOutput(on: Boolean) { desiredOn = on; write(if (on) 0x01 else 0x00) }
-    fun powerOn()  = setOutput(true)
-    fun powerOff() = setOutput(false)
 
     /** 저장된 TX 본딩 해제(다른 기기로 재페어링용) */
     fun forget(ctx: Context) { prefs(ctx).edit().remove(KEY_MAC).apply(); stop() }
