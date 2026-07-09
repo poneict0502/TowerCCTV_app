@@ -115,6 +115,8 @@ class MainActivity : AppCompatActivity() {
         }
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
+        // 상단 부제목에 실행 중인 빌드 버전 표시(어느 APK가 도는지 즉시 확인)
+        b.tvSubtitle.text = "AIVION  ·  v${com.pone.towerccctv.BuildConfig.VERSION_NAME}  ·  ${com.pone.towerccctv.BuildConfig.BUILD_STAMP}  ·  ${com.pone.towerccctv.BuildConfig.GIT_SHA}"
         setFullscreen()
         addContentView(sleepOverlay, android.view.ViewGroup.LayoutParams(
             android.view.ViewGroup.LayoutParams.MATCH_PARENT,

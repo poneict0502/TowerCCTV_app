@@ -33,7 +33,7 @@
                 android:text="타워크레인 와이어 탈선 감시 CCTV 시스템"
                 android:textColor="#FFFFFF" android:textSize="17sp" android:textStyle="bold"
                 android:gravity="center"/>
-            <TextView
+            <TextView android:id="@+id/tvSubtitle"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:text="Tower Crane Wire Derailment Monitoring System  ·  AIVION"
                 android:textColor="#4A7AB5" android:textSize="10sp"
