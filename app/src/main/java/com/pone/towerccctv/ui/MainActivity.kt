@@ -1059,20 +1059,7 @@ class MainActivity : AppCompatActivity() {
             Thread {
                 // 사유: null=성공, 그 외=실패 사유(운전자/설치자용 문구)
                 val fail: String? = try {
-                    val authCache = java.util.concurrent.ConcurrentHashMap<String,
-                            com.burgstaller.okhttp.digest.CachingAuthenticator>()
-                    val creds = com.burgstaller.okhttp.digest.Credentials(dev.username, dev.password)
-                    val auth = com.burgstaller.okhttp.DispatchingAuthenticator.Builder()
-                        .with("digest", com.burgstaller.okhttp.digest.DigestAuthenticator(creds))
-                        .with("basic", com.burgstaller.okhttp.basic.BasicAuthenticator(creds))
-                        .build()
-                    val client = okhttp3.OkHttpClient.Builder()
-                        .connectTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
-                        .readTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
-                        .authenticator(com.burgstaller.okhttp.CachingAuthenticatorDecorator(auth, authCache))
-                        .addInterceptor(com.burgstaller.okhttp.AuthenticationCacheInterceptor(authCache))
-                        .trustSelfSignedCam()   // 한화 HTTPS 자체서명 신뢰
-                        .build()
+                    val client = com.pone.towerccctv.camHttpClient(dev.username, dev.password, connectSec = 4, readSec = 4)
                     // ★장치관리에 설정된 브랜드 프로토콜로 분기 (하드코딩 X)
                     val code: Int; var bad = false
                     when (dev.brand) {
@@ -1162,19 +1149,7 @@ class MainActivity : AppCompatActivity() {
 
         Thread {
             try {
-                val authCache = java.util.concurrent.ConcurrentHashMap<String,
-                        com.burgstaller.okhttp.digest.CachingAuthenticator>()
-                val creds = com.burgstaller.okhttp.digest.Credentials(ch1.username, ch1.password)
-                val auth = com.burgstaller.okhttp.DispatchingAuthenticator.Builder()
-                    .with("digest", com.burgstaller.okhttp.digest.DigestAuthenticator(creds))
-                    .with("basic", com.burgstaller.okhttp.basic.BasicAuthenticator(creds))
-                    .build()
-                val client = okhttp3.OkHttpClient.Builder()
-                    .connectTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
-                    .readTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
-                    .authenticator(com.burgstaller.okhttp.CachingAuthenticatorDecorator(auth, authCache))
-                    .addInterceptor(com.burgstaller.okhttp.AuthenticationCacheInterceptor(authCache))
-                    .build()
+                val client = com.pone.towerccctv.camHttpClient(ch1.username, ch1.password, connectSec = 2, readSec = 2)
                 val body = okhttp3.RequestBody.create("application/xml".toMediaType(), xml)
                 val req = okhttp3.Request.Builder()
                     .url("http://${ch1.extractIp()}/ISAPI/System/Video/inputs/channels/1/overlays/text")
@@ -1206,19 +1181,7 @@ class MainActivity : AppCompatActivity() {
         val ch1 = channels.firstOrNull() ?: return
         Thread {
             try {
-                val authCache = java.util.concurrent.ConcurrentHashMap<String,
-                        com.burgstaller.okhttp.digest.CachingAuthenticator>()
-                val creds = com.burgstaller.okhttp.digest.Credentials(ch1.username, ch1.password)
-                val auth = com.burgstaller.okhttp.DispatchingAuthenticator.Builder()
-                    .with("digest", com.burgstaller.okhttp.digest.DigestAuthenticator(creds))
-                    .with("basic", com.burgstaller.okhttp.basic.BasicAuthenticator(creds))
-                    .build()
-                val client = okhttp3.OkHttpClient.Builder()
-                    .connectTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
-                    .readTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
-                    .authenticator(com.burgstaller.okhttp.CachingAuthenticatorDecorator(auth, authCache))
-                    .addInterceptor(com.burgstaller.okhttp.AuthenticationCacheInterceptor(authCache))
-                    .build()
+                val client = com.pone.towerccctv.camHttpClient(ch1.username, ch1.password, connectSec = 2, readSec = 2)
                 val body = okhttp3.RequestBody.create("application/xml".toMediaType(), xml)
                 val req = okhttp3.Request.Builder()
                     .url("http://${ch1.extractIp()}/ISAPI/System/Video/inputs/channels/1/overlays/text")

@@ -9,17 +9,8 @@ import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.widget.*
-import com.burgstaller.okhttp.AuthenticationCacheInterceptor
-import com.burgstaller.okhttp.CachingAuthenticatorDecorator
-import com.burgstaller.okhttp.DispatchingAuthenticator
-import com.burgstaller.okhttp.basic.BasicAuthenticator
-import com.burgstaller.okhttp.digest.CachingAuthenticator
-import com.burgstaller.okhttp.digest.Credentials
-import com.burgstaller.okhttp.digest.DigestAuthenticator
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 import com.pone.towerccctv.model.DeviceStore
 import com.pone.towerccctv.ocr.OcrSettings
 import com.pone.towerccctv.ocr.RoiOverlayView
@@ -259,18 +250,7 @@ class OcrSettingsDialog(
         }
 
         // ★ 동적으로 받은 인증정보 사용
-        val authCache = ConcurrentHashMap<String, CachingAuthenticator>()
-        val creds = Credentials(snapUser, snapPass)
-        val auth = DispatchingAuthenticator.Builder()
-            .with("digest", DigestAuthenticator(creds))
-            .with("basic", BasicAuthenticator(creds))
-            .build()
-        val httpClient = OkHttpClient.Builder()
-            .connectTimeout(6, TimeUnit.SECONDS)
-            .readTimeout(6, TimeUnit.SECONDS)
-            .authenticator(CachingAuthenticatorDecorator(auth, authCache))
-            .addInterceptor(AuthenticationCacheInterceptor(authCache))
-            .build()
+        val httpClient = com.pone.towerccctv.camHttpClient(snapUser, snapPass, connectSec = 6, readSec = 6)
         val mainHandler = Handler(Looper.getMainLooper())
 
         fun loadSnapshot() {

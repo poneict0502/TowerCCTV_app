@@ -1,13 +1,6 @@
 package com.pone.towerccctv.controller
 
 import android.util.Log
-import com.burgstaller.okhttp.AuthenticationCacheInterceptor
-import com.burgstaller.okhttp.CachingAuthenticatorDecorator
-import com.burgstaller.okhttp.DispatchingAuthenticator
-import com.burgstaller.okhttp.basic.BasicAuthenticator
-import com.burgstaller.okhttp.digest.CachingAuthenticator
-import com.burgstaller.okhttp.digest.Credentials
-import com.burgstaller.okhttp.digest.DigestAuthenticator
 import com.pone.towerccctv.model.CameraBrand
 import com.pone.towerccctv.model.Channel
 import com.pone.towerccctv.trustSelfSignedCam
@@ -18,26 +11,12 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 import kotlin.math.cos
 import kotlin.math.sin
 
 class PtzController(private val ch: Channel) {
 
-    private val authCache = ConcurrentHashMap<String, CachingAuthenticator>()
-    private val credentials = Credentials(ch.username, ch.password)
-    private val authenticator = DispatchingAuthenticator.Builder()
-        .with("digest", DigestAuthenticator(credentials))
-        .with("basic", BasicAuthenticator(credentials))
-        .build()
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(3, TimeUnit.SECONDS)
-        .readTimeout(5, TimeUnit.SECONDS)
-        .authenticator(CachingAuthenticatorDecorator(authenticator, authCache))
-        .addInterceptor(AuthenticationCacheInterceptor(authCache))
-        .trustSelfSignedCam()   // 한화 등 HTTPS 강제 카메라의 자체서명 인증서 신뢰
-        .build()
+    private val client = com.pone.towerccctv.camHttpClient(ch.username, ch.password, connectSec = 3, readSec = 5)
     private val scope = CoroutineScope(Dispatchers.IO)
 
     // 한화(Wisenet)는 CGI 를 HTTPS(443)로 강제 → 한화만 https 로 호출

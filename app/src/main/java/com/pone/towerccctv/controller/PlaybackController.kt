@@ -1,13 +1,6 @@
 package com.pone.towerccctv.controller
 
 import android.util.Log
-import com.burgstaller.okhttp.AuthenticationCacheInterceptor
-import com.burgstaller.okhttp.CachingAuthenticatorDecorator
-import com.burgstaller.okhttp.DispatchingAuthenticator
-import com.burgstaller.okhttp.basic.BasicAuthenticator
-import com.burgstaller.okhttp.digest.CachingAuthenticator
-import com.burgstaller.okhttp.digest.Credentials
-import com.burgstaller.okhttp.digest.DigestAuthenticator
 import com.pone.towerccctv.model.Channel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,8 +10,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 
 data class RecordSegment(val start: Date, val end: Date, val rtspUrl: String) {
     val startStr get() = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(start)
@@ -32,20 +23,9 @@ data class RecordSegment(val start: Date, val end: Date, val rtspUrl: String) {
 
 class PlaybackController(private val ch: Channel) {
 
-    // Digest 인증 클라이언트
+    // Digest 인증 클라이언트 (녹화재생: 읽기 타임아웃 넉넉히)
     private val client: OkHttpClient by lazy {
-        val authCache = ConcurrentHashMap<String, CachingAuthenticator>()
-        val creds = Credentials(ch.username, ch.password)
-        val auth = DispatchingAuthenticator.Builder()
-            .with("digest", DigestAuthenticator(creds))
-            .with("basic", BasicAuthenticator(creds))
-            .build()
-        OkHttpClient.Builder()
-            .connectTimeout(5, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
-            .authenticator(CachingAuthenticatorDecorator(auth, authCache))
-            .addInterceptor(AuthenticationCacheInterceptor(authCache))
-            .build()
+        com.pone.towerccctv.camHttpClient(ch.username, ch.password, connectSec = 5, readSec = 15)
     }
 
     private val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {

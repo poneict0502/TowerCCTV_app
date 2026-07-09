@@ -311,16 +311,7 @@ class PlayerActivity : AppCompatActivity() {
         val url = snapshotUrl(brand, ip) ?: return
         Thread {
             try {
-                val cache = java.util.concurrent.ConcurrentHashMap<String, com.burgstaller.okhttp.digest.CachingAuthenticator>()
-                val creds = com.burgstaller.okhttp.digest.Credentials(user.trim(), pass.trim())
-                val auth = com.burgstaller.okhttp.DispatchingAuthenticator.Builder()
-                    .with("digest", com.burgstaller.okhttp.digest.DigestAuthenticator(creds))
-                    .with("basic", com.burgstaller.okhttp.basic.BasicAuthenticator(creds)).build()
-                val client = okhttp3.OkHttpClient.Builder()
-                    .connectTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
-                    .readTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
-                    .authenticator(com.burgstaller.okhttp.CachingAuthenticatorDecorator(auth, cache))
-                    .addInterceptor(com.burgstaller.okhttp.AuthenticationCacheInterceptor(cache)).trustSelfSignedCam().build()
+                val client = com.pone.towerccctv.camHttpClient(user, pass, connectSec = 2, readSec = 3)
                 client.newCall(okhttp3.Request.Builder().url(url).get().build()).execute().use { r ->
                     val bytes = r.body?.bytes() ?: return@Thread
                     val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return@Thread

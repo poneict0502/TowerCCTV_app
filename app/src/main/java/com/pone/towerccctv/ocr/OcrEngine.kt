@@ -8,21 +8,12 @@ import android.provider.MediaStore
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import com.burgstaller.okhttp.AuthenticationCacheInterceptor
-import com.burgstaller.okhttp.CachingAuthenticatorDecorator
-import com.burgstaller.okhttp.DispatchingAuthenticator
-import com.burgstaller.okhttp.basic.BasicAuthenticator
-import com.burgstaller.okhttp.digest.CachingAuthenticator
-import com.burgstaller.okhttp.digest.Credentials
-import com.burgstaller.okhttp.digest.DigestAuthenticator
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
 class OcrEngine(private val context: Context) {
@@ -63,18 +54,7 @@ class OcrEngine(private val context: Context) {
     fun startHttpLoop(snapshotUrl: String, username: String, password: String) {
         stopLoop()
         Log.d("OCR", "시작: $snapshotUrl (user=$username)")
-        val authCache = ConcurrentHashMap<String, CachingAuthenticator>()
-        val credentials = Credentials(username, password)
-        val authenticator = DispatchingAuthenticator.Builder()
-            .with("digest", DigestAuthenticator(credentials))
-            .with("basic", BasicAuthenticator(credentials))
-            .build()
-        httpClient = OkHttpClient.Builder()
-            .connectTimeout(5, TimeUnit.SECONDS)
-            .readTimeout(5, TimeUnit.SECONDS)
-            .authenticator(CachingAuthenticatorDecorator(authenticator, authCache))
-            .addInterceptor(AuthenticationCacheInterceptor(authCache))
-            .build()
+        httpClient = com.pone.towerccctv.camHttpClient(username, password, connectSec = 5, readSec = 5)
 
         // 연속 실패 카운트 - 5회 실패 시 자동 정지 (인증오류 무한반복 방지)
         var failStreak = 0

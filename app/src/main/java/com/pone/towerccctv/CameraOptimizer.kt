@@ -1,13 +1,6 @@
 package com.pone.towerccctv
 
 import android.util.Log
-import com.burgstaller.okhttp.AuthenticationCacheInterceptor
-import com.burgstaller.okhttp.CachingAuthenticatorDecorator
-import com.burgstaller.okhttp.DispatchingAuthenticator
-import com.burgstaller.okhttp.basic.BasicAuthenticator
-import com.burgstaller.okhttp.digest.CachingAuthenticator
-import com.burgstaller.okhttp.digest.Credentials
-import com.burgstaller.okhttp.digest.DigestAuthenticator
 import com.pone.towerccctv.model.CameraBrand
 import com.pone.towerccctv.model.Device
 import okhttp3.MediaType.Companion.toMediaType
@@ -15,8 +8,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.Calendar
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 
 /**
  * 카메라 자동 최적화: 코덱 H.264 + GOP 30 + 시간동기화 (+한화 DIS).
@@ -27,19 +18,8 @@ object CameraOptimizer {
 
     data class Result(val name: String, val ip: String, val lines: List<String>)
 
-    private fun client(user: String, pass: String): OkHttpClient {
-        val cache = ConcurrentHashMap<String, CachingAuthenticator>()
-        val creds = Credentials(user, pass)
-        val auth = DispatchingAuthenticator.Builder()
-            .with("digest", DigestAuthenticator(creds))
-            .with("basic", BasicAuthenticator(creds)).build()
-        return OkHttpClient.Builder()
-            .connectTimeout(4, TimeUnit.SECONDS).readTimeout(5, TimeUnit.SECONDS)
-            .authenticator(CachingAuthenticatorDecorator(auth, cache))
-            .addInterceptor(AuthenticationCacheInterceptor(cache))
-            .trustSelfSignedCam()   // 한화 등 HTTPS 강제 카메라의 자체서명 인증서 신뢰
-            .build()
-    }
+    private fun client(user: String, pass: String): OkHttpClient =
+        camHttpClient(user, pass, connectSec = 4, readSec = 5)
 
     fun optimize(dev: Device, powerSave: Boolean = false): Result {
         val c = client(dev.username.trim(), dev.password.trim())
