@@ -43,6 +43,9 @@ class AddDeviceActivity : AppCompatActivity() {
             else                                           -> "NVR 추가"
         }
 
+        // 키보드가 뜰 때 화면을 줄여(스크롤 가능) 저장 버튼 등이 안 가리게
+        window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+
         val scroll = ScrollView(this)
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -95,6 +98,8 @@ class AddDeviceActivity : AppCompatActivity() {
                 this.hint = hint; setText(defVal)
                 setTextColor(Color.WHITE); setHintTextColor(Color.parseColor("#555555"))
                 textSize = 14f
+                isSingleLine = true   // 엔터로 줄바꿈 방지(비번에 \n 섞임 방지)
+                imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_NEXT   // 엔터 = 다음 칸으로
                 if (numeric) inputType = android.text.InputType.TYPE_CLASS_NUMBER
                 setBackgroundColor(Color.parseColor("#1E1E22"))
                 setPadding(12, 10, 12, 10)
@@ -120,8 +125,16 @@ class AddDeviceActivity : AppCompatActivity() {
         etHttpPort = field("HTTP 포트", "80", "80",  numeric = true)
         etUser     = field("사용자명", "admin",
                         if (isNew) "admin" else "admin")
-        etPass     = field("비밀번호", "카메라 비밀번호 입력",
-                        "")   // 보안상 실제 비번 프리필 제거 — 설치 시 직접 입력
+        etPass     = field("비밀번호", "카메라 비밀번호 입력", "").apply {
+            // 비번은 보이는 텍스트(설치자 확인) + 단일라인 + 엔터=완료(키보드 닫힘)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+            setOnEditorActionListener { v, _, _ ->
+                (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager)
+                    .hideSoftInputFromWindow(v.windowToken, 0)
+                true
+            }
+        }
 
         // NVR 전용: 채널 수
         if (devType == DeviceType.NVR) {
