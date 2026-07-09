@@ -7,6 +7,19 @@ import org.json.JSONObject
 enum class DeviceType { CAMERA, NVR }
 enum class CameraBrand { HIKVISION, DAHUA, IDIS, HANWHA }
 
+/**
+ * ★★ RTSP URL 에 자격증명(user:pass)을 넣는 **유일한 지점**. 새 RTSP URL 을 만들 땐 반드시 이 함수만 쓸 것.
+ *
+ * libVLC(live555)는 URL 의 % 인코딩을 **디코딩하지 않고** 그대로 인증에 쓴다.
+ *  → 비번의 '@' 를 URLEncoder 로 %40 으로 바꾸면 인증 실패(검은화면). (실측 2026-07-09)
+ *  → 자격증명은 **raw** 로 넣는다. VLC 는 authority 를 '마지막 @'(strrchr) 로 자르므로 비번 속 '@' 도 안전.
+ *     단 URL 구조를 깨는 '/ ? #' 만 최소 인코딩. HTTP(okhttp)엔 쓰지 말 것(Credentials 로 raw 그대로).
+ */
+fun rtspCred(user: String, pass: String): String {
+    fun safe(s: String) = s.trim().replace("/", "%2F").replace("?", "%3F").replace("#", "%23")
+    return "${safe(user)}:${safe(pass)}"
+}
+
 data class Channel(
     val index: Int,
     val label: String,
@@ -38,13 +51,9 @@ data class Device(
     val enabled: Boolean = true
 ) {
     fun toChannels(): List<Channel> {
-        // ★ 앞뒤 공백·줄바꿈 제거(복붙 %0A 방지). RTSP 자격증명은 raw 로 넣는다 —
-        //   libVLC(live555)가 URL의 %인코딩을 디코딩하지 않아 %40(=@) 등이 인증 실패를 유발.
-        //   VLC는 authority 를 '마지막 @' 기준으로 잘라 쓰므로 비번 안의 @ 도 raw 로 안전.
-        //   (URL 구조를 깨는 / ? # 만 최소 인코딩)
         val u = username.trim()
-        val p = password.trim().replace("/", "%2F").replace("?", "%3F").replace("#", "%23")
-        val base = "rtsp://$u:$p@$ip:$rtspPort"
+        val base = "rtsp://${rtspCred(username, password)}@$ip:$rtspPort"   // 자격증명은 rtspCred() 로만 삽입
+        val p = password.trim()   // (아래 Channel 저장용 raw 비번)
         val http = "http://$ip:$httpPort"
         return when (type) {
             DeviceType.CAMERA -> {

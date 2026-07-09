@@ -93,7 +93,7 @@ class PlaybackController(private val ch: Channel) {
 
     fun playbackUrl(seg: RecordSegment): String {
         val ip = ch.httpBase.removePrefix("http://").split(":")[0]
-        return "rtsp://${ch.username}:${ch.password}@$ip:554/Streaming/tracks/$trackId" +
+        return "rtsp://${com.pone.towerccctv.model.rtspCred(ch.username, ch.password)}@$ip:554/Streaming/tracks/$trackId" +
                 "?starttime=${rtsp.format(seg.start)}&endtime=${rtsp.format(seg.end)}"
     }
 
