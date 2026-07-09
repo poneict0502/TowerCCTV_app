@@ -68,6 +68,10 @@ object CameraOptimizer {
             any = true
             var n = xml.replace(Regex("<videoCodecType>.*?</videoCodecType>"), "<videoCodecType>H.264</videoCodecType>")
             n = n.replace(Regex("<GovLength>\\d+</GovLength>"), "<GovLength>$gov</GovLength>")
+            if (ch == 102) {   // ★서브스트림은 반드시 16:9(640x360). 4:3이면 4분할에서 세로 넘침이 위 셀에 번짐(실측 2026-07-09)
+                n = n.replace(Regex("<videoResolutionWidth>\\d+</videoResolutionWidth>"), "<videoResolutionWidth>640</videoResolutionWidth>")
+                n = n.replace(Regex("<videoResolutionHeight>\\d+</videoResolutionHeight>"), "<videoResolutionHeight>360</videoResolutionHeight>")
+            }
             if (powerSave) {
                 val fps = if (ch == 101) "1500" else "1200"
                 n = n.replace(Regex("<maxFrameRate>\\d+</maxFrameRate>"), "<maxFrameRate>$fps</maxFrameRate>")
