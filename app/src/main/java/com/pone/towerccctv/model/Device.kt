@@ -38,12 +38,13 @@ data class Device(
     val enabled: Boolean = true
 ) {
     fun toChannels(): List<Channel> {
-        // ★ 아이디/비번 앞뒤 공백·줄바꿈 제거 (복붙 %0A 로 인한 인증 실패 방지)
+        // ★ 앞뒤 공백·줄바꿈 제거(복붙 %0A 방지). RTSP 자격증명은 raw 로 넣는다 —
+        //   libVLC(live555)가 URL의 %인코딩을 디코딩하지 않아 %40(=@) 등이 인증 실패를 유발.
+        //   VLC는 authority 를 '마지막 @' 기준으로 잘라 쓰므로 비번 안의 @ 도 raw 로 안전.
+        //   (URL 구조를 깨는 / ? # 만 최소 인코딩)
         val u = username.trim()
-        val p = password.trim()
-        val encUser = java.net.URLEncoder.encode(u, "UTF-8")
-        val encPass = java.net.URLEncoder.encode(p, "UTF-8")
-        val base = "rtsp://$encUser:$encPass@$ip:$rtspPort"
+        val p = password.trim().replace("/", "%2F").replace("?", "%3F").replace("#", "%23")
+        val base = "rtsp://$u:$p@$ip:$rtspPort"
         val http = "http://$ip:$httpPort"
         return when (type) {
             DeviceType.CAMERA -> {
