@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 앱 자동 업데이트(OTA): 다운로드한 APK 설치 실행 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>
@@ -47,6 +49,17 @@
         <activity android:name=".ui.AlertHistoryActivity" android:screenOrientation="landscape"/>
         <activity android:name=".ui.PlaybackActivity" android:exported="false"
             android:screenOrientation="landscape"/>
+
+        <!-- OTA 업데이트 APK 설치용 FileProvider -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"/>
+        </provider>
 
         <receiver android:name=".RestartReceiver" android:exported="false"/>
         <receiver android:name=".BootReceiver" android:exported="true">

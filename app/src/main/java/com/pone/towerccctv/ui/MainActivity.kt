@@ -154,6 +154,7 @@ class MainActivity : AppCompatActivity() {
             popup.menu.add(0, 6, 6, "📊  경보 이력 조회")
             popup.menu.add(0, 11, 7, "📈  사용 로그 보기")
             popup.menu.add(0, 10, 8, "🌙  지금 절전 (시동 OFF 모의)")
+            popup.menu.add(0, 13, 9, "🔄  앱 업데이트 확인")
             popup.setOnMenuItemClickListener { item ->
                 when (item.itemId) {
                     1 -> startActivity(Intent(this, DeviceListActivity::class.java))
@@ -180,6 +181,7 @@ class MainActivity : AppCompatActivity() {
                     12 -> showCameraPower()
                     11 -> showUsageLog()
                     10 -> powerMonitor?.forceSleep()
+                    13 -> com.pone.towerccctv.Updater.checkAndPrompt(this)
                     6 -> startActivity(Intent(this, AlertHistoryActivity::class.java))
                     7 -> {
                         if (ocrEngine != null && OcrSettings.isOcrEnabled(this)) {

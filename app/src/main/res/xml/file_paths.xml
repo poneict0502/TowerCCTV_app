@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- getExternalFilesDir(null) 하위 전체 (OTA update/tower.apk 포함) -->
+    <external-files-path name="ext_files" path="." />
+</paths>

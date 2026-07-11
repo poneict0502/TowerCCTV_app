@@ -16,6 +16,10 @@ def versionByDate = {
     fmt.setTimeZone(TimeZone.getTimeZone("Asia/Seoul"))
     return fmt.format(new Date())
 }()
+// versionCode = 빌드 시각(분 단위, epoch) 자동 증가 → OTA(자동 업데이트)가
+//   "릴리스가 설치본보다 최신인지"를 정수 비교로 정확히 판별.
+def autoVersionCode = (int)(System.currentTimeMillis() / 60000L)
+
 // 현재 git 짧은 해시(없으면 nogit)
 def gitShortSha = {
     try {
@@ -34,7 +38,7 @@ android {
         applicationId "com.pone.towerccctv"
         minSdk 24
         targetSdk 34
-        versionCode 2
+        versionCode autoVersionCode  // 자동 증가(빌드 분). OTA 최신판별용
         versionName versionByDate   // 빌드 날짜 자동 (예: 2026.07.09)
         ndk { abiFilters 'arm64-v8a', 'armeabi-v7a' }
 
